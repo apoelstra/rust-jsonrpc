@@ -94,3 +94,56 @@ pub fn result_to_response(result: JsonResult<json::Json>, id: json::Json) -> Res
   }
 }
 
+#[cfg(test)]
+mod tests {
+  use super::{ParseError, InvalidRequest, MethodNotFound, InvalidParams, InternalError};
+  use super::{standard_error, result_to_response};
+
+  use serialize::json;
+
+  #[test]
+  fn test_parse_error() {
+    let resp = result_to_response(Err(standard_error(ParseError, None)), json::Number(1.0));
+    assert!(resp.result.is_none());
+    assert!(resp.error.is_some());
+    assert_eq!(resp.id, json::Number(1.0));
+    assert_eq!(resp.error.get_ref().code, -32700);
+  }
+
+  #[test]
+  fn test_invalid_request() {
+    let resp = result_to_response(Err(standard_error(InvalidRequest, None)), json::Number(1.0));
+    assert!(resp.result.is_none());
+    assert!(resp.error.is_some());
+    assert_eq!(resp.id, json::Number(1.0));
+    assert_eq!(resp.error.get_ref().code, -32600);
+  }
+
+  #[test]
+  fn test_method_not_found() {
+    let resp = result_to_response(Err(standard_error(MethodNotFound, None)), json::Number(1.0));
+    assert!(resp.result.is_none());
+    assert!(resp.error.is_some());
+    assert_eq!(resp.id, json::Number(1.0));
+    assert_eq!(resp.error.get_ref().code, -32601);
+  }
+
+  #[test]
+  fn test_invalid_params() {
+    let resp = result_to_response(Err(standard_error(InvalidParams, None)), json::Number(1.0));
+    assert!(resp.result.is_none());
+    assert!(resp.error.is_some());
+    assert_eq!(resp.id, json::Number(1.0));
+    assert_eq!(resp.error.get_ref().code, -32602);
+  }
+
+  #[test]
+  fn test_internal_error() {
+    let resp = result_to_response(Err(standard_error(InternalError, None)), json::Number(1.0));
+    assert!(resp.result.is_none());
+    assert!(resp.error.is_some());
+    assert_eq!(resp.id, json::Number(1.0));
+    assert_eq!(resp.error.get_ref().code, -32603);
+  }
+}
+
