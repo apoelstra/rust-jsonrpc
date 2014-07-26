@@ -92,7 +92,6 @@ impl server::Server for JsonRpcServer {
     // Pass the response to the peer
     let reply_str = json::encode(&response);
     let reply_bytes = reply_str.as_bytes();
-println!("returning <<<< {} >>>>", reply_str);
 
     w.headers.content_length = Some(reply_bytes.len());
     if w.write(reply_bytes).is_err() {
