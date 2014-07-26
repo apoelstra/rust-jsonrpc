@@ -23,19 +23,20 @@ use std::io::net::ip::{SocketAddr, Ipv4Addr};
 use serialize::json;
 use time;
 
-use {Request, Response, json_decode_field, json_decode_field_list, json_decode_field_string};
+use error::{Error, result_to_response};
+use {Request, json_decode_field, json_decode_field_list, json_decode_field_string};
 
 /// A Server which reacts to JSONRPC requests by passing the request,
 /// along with a response channel, across a channel.
 #[deriving(Clone)]
 pub struct JsonRpcServer {
-  req_tx: Sender<(Request, Sender<Result<json::Json, json::Json>>)>,
+  req_tx: Sender<(Request, Sender<Result<json::Json, Error>>)>,
 }
 
 impl JsonRpcServer {
   /// Constructor: returns a new `JsonRpcServer` along with a `Receiver`
   /// which should be listened on for new requests from peers
-  pub fn new() -> (JsonRpcServer, Receiver<(Request, Sender<Result<json::Json, json::Json>>)>) {
+  pub fn new() -> (JsonRpcServer, Receiver<(Request, Sender<Result<json::Json, Error>>)>) {
     let (tx, rx) = channel();
     (JsonRpcServer { req_tx: tx }, rx)
   }
@@ -71,34 +72,19 @@ impl server::Server for JsonRpcServer {
         method: method.unwrap(),
         params: params.unwrap()
       };
+      // Request response from main thread
       self.req_tx.send((request, resp_tx));
-      match resp_rx.recv() {
-        Ok(result) => {
-          Response {
-            id: id.unwrap(),
-            result: result,
-            error: json::Null
-          }
-        }
-        Err(error) => {
-          Response {
-            id: id.unwrap(),
-            result: json::Null,
-            error: error
-          }
-        }
-      }
+      result_to_response(resp_rx.recv(), id.unwrap())
     // Otherwise use the error as a response
     } else if id.is_err() {
-      id.unwrap_err()
+      result_to_response(id, json::Null)
     } else if method.is_err() {
-      let mut resp = method.unwrap_err();
-      resp.id = id.unwrap();
-      resp
+      result_to_response(method.map(|meth| json::String(meth)), id.unwrap())
     } else if params.is_err() {
-      let mut resp = params.unwrap_err();
-      resp.id = id.unwrap();
-      resp
+      result_to_response(params.map(|parms| json::List(parms)), id.unwrap())
+    // Romy says, `else` as code for `else if [last thing i can think of]` is a
+    // subtle bug waiting to happen. So actually use `else if` and add an unreachable
+    // clause to satisfy the code-path checker
     } else {
       unreachable!()
     };
@@ -106,6 +92,7 @@ impl server::Server for JsonRpcServer {
     // Pass the response to the peer
     let reply_str = json::encode(&response);
     let reply_bytes = reply_str.as_bytes();
+println!("returning <<<< {} >>>>", reply_str);
 
     w.headers.content_length = Some(reply_bytes.len());
     if w.write(reply_bytes).is_err() {

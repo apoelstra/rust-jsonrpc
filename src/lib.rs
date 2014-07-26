@@ -46,6 +46,7 @@ extern crate time;
 
 use serialize::json;
 
+pub mod error;
 pub mod server;
 
 #[deriving(Clone, Show)]
@@ -63,89 +64,56 @@ pub struct Request {
 /// A JSONRPC response object
 pub struct Response {
   /// A result if there is one, or null
-  pub result: json::Json,
+  pub result: Option<json::Json>,
   /// An error if there is one, or null
-  pub error: json::Json,
+  pub error: Option<error::Error>,
   /// Identifier from the request
   pub id: json::Json
 }
 
-pub type ErrorResponse = Response;
-pub type JsonResult<T> = Result<T, ErrorResponse>;
+pub type JsonResult<T> = Result<T, error::Error>;
 
 fn json_decode_field(js: &json::Json, key: &str) -> JsonResult<json::Json> {
   if !js.is_object() {
-    Err(Response {
-      result: json::Null,
-      error: json::String("Expected JSON object.".to_string()),
-      id: json::Null
-    })
+    Err(error::standard_error(error::InvalidRequest, None))
   } else {
     match js.find(&key.to_string()) {
       Some(js) => Ok(js.clone()),
-      None => Err(Response {
-        result: json::Null,
-        error: json::String(format!("Did not find `{}` in object.", key)),
-        id: json::Null
-      })
+      None => Err(error::standard_error(error::InvalidRequest, None))
     }
   }
 }
 
 fn json_decode_field_string(js: &json::Json, key: &str) -> JsonResult<String> {
   if !js.is_object() {
-    Err(Response {
-      result: json::Null,
-      error: json::String("Expected JSON object.".to_string()),
-      id: json::Null
-    })
+    Err(error::standard_error(error::InvalidRequest, None))
   } else {
     match js.find(&key.to_string()) {
       Some(js) => {
         if !js.is_string() {
-          Err(Response {
-            result: json::Null,
-            error: json::String("Expected JSON string.".to_string()),
-            id: json::Null
-          })
+          Err(error::standard_error(error::InvalidRequest, None))
         } else {
           Ok(js.as_string().unwrap().to_string())
         }
       }
-      None => Err(Response {
-        result: json::Null,
-        error: json::String(format!("Did not find `{}` in object.", key)),
-        id: json::Null
-      })
+      None => Err(error::standard_error(error::InvalidRequest, None))
     }
   }
 }
 
 fn json_decode_field_list(js: &json::Json, key: &str) -> JsonResult<json::List> {
   if !js.is_object() {
-    Err(Response {
-      result: json::Null,
-      error: json::String("Expected JSON object.".to_string()),
-      id: json::Null
-    })
+    Err(error::standard_error(error::InvalidRequest, None))
   } else {
     match js.find(&key.to_string()) {
       Some(js) => {
         if !js.is_list() {
-          Err(Response {
-            result: json::Null,
-            error: json::String("Expected JSON list.".to_string()),
-            id: json::Null
-          })
+          Err(error::standard_error(error::InvalidRequest, None))
         } else {
           Ok(js.as_list().unwrap().clone())
         }
       }
-      None => Err(Response {
-        result: json::Null,
-        error: json::String(format!("Did not find `{}` in object.", key)),
-        id: json::Null
-      })
+      None => Err(error::standard_error(error::InvalidRequest, None))
     }
   }
 }
