@@ -24,7 +24,8 @@ use serialize::json;
 use time;
 
 use error::{Error, result_to_response};
-use {Request, json_decode_field, json_decode_field_list, json_decode_field_string};
+use Request;
+use decode::{json_decode_field, json_decode_field_list, json_decode_field_string};
 
 /// A Server which reacts to JSONRPC requests by passing the request,
 /// along with a response channel, across a channel.

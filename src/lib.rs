@@ -46,6 +46,7 @@ extern crate time;
 
 use serialize::json;
 
+pub mod decode;
 pub mod error;
 pub mod server;
 
@@ -72,49 +73,4 @@ pub struct Response {
 }
 
 pub type JsonResult<T> = Result<T, error::Error>;
-
-fn json_decode_field(js: &json::Json, key: &str) -> JsonResult<json::Json> {
-  if !js.is_object() {
-    Err(error::standard_error(error::InvalidRequest, None))
-  } else {
-    match js.find(&key.to_string()) {
-      Some(js) => Ok(js.clone()),
-      None => Err(error::standard_error(error::InvalidRequest, None))
-    }
-  }
-}
-
-fn json_decode_field_string(js: &json::Json, key: &str) -> JsonResult<String> {
-  if !js.is_object() {
-    Err(error::standard_error(error::InvalidRequest, None))
-  } else {
-    match js.find(&key.to_string()) {
-      Some(js) => {
-        if !js.is_string() {
-          Err(error::standard_error(error::InvalidRequest, None))
-        } else {
-          Ok(js.as_string().unwrap().to_string())
-        }
-      }
-      None => Err(error::standard_error(error::InvalidRequest, None))
-    }
-  }
-}
-
-fn json_decode_field_list(js: &json::Json, key: &str) -> JsonResult<json::List> {
-  if !js.is_object() {
-    Err(error::standard_error(error::InvalidRequest, None))
-  } else {
-    match js.find(&key.to_string()) {
-      Some(js) => {
-        if !js.is_list() {
-          Err(error::standard_error(error::InvalidRequest, None))
-        } else {
-          Ok(js.as_list().unwrap().clone())
-        }
-      }
-      None => Err(error::standard_error(error::InvalidRequest, None))
-    }
-  }
-}
 
