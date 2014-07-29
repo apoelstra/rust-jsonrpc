@@ -50,9 +50,12 @@ pub enum StandardError {
 #[deriving(Clone, Show, Encodable)]
 /// A JSONRPC error object
 pub struct Error {
-  code: int,
-  message: String,
-  data: Option<json::Json>
+  /// The integer identifier of the error
+  pub code: int,
+  /// A string describing the error
+  pub message: String,
+  /// Additional data specific to the error
+  pub data: Option<json::Json>
 }
 
 /// Create a standard error responses
