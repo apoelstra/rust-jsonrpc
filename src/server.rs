@@ -18,7 +18,8 @@
 use http::server;
 use http::headers::content_type::MediaType;
 
-use std::io::net::ip::{SocketAddr, Ipv4Addr};
+use std::from_str::FromStr;
+use std::io::net::ip::{SocketAddr, IpAddr};
 
 use serialize::json;
 use time;
@@ -31,21 +32,26 @@ use decode::{json_decode_field, json_decode_field_list, json_decode_field_string
 /// along with a response channel, across a channel.
 #[deriving(Clone)]
 pub struct JsonRpcServer {
+  address: IpAddr,
+  port: u16,
   req_tx: Sender<(Request, Sender<Result<json::Json, Error>>)>,
 }
 
 impl JsonRpcServer {
   /// Constructor: returns a new `JsonRpcServer` along with a `Receiver`
   /// which should be listened on for new requests from peers
-  pub fn new() -> (JsonRpcServer, Receiver<(Request, Sender<Result<json::Json, Error>>)>) {
+  pub fn new(addr: &str, port: u16) -> Result<(JsonRpcServer, Receiver<(Request, Sender<Result<json::Json, Error>>)>), String> {
     let (tx, rx) = channel();
-    (JsonRpcServer { req_tx: tx }, rx)
+    match FromStr::from_str(addr) {
+      Some(addr) => Ok((JsonRpcServer { address: addr, port: port, req_tx: tx }, rx)),
+      None => Err(format!("Unable to get IP address from `{}`", addr))
+    }
   }
 }
 
 impl server::Server for JsonRpcServer {
   fn get_config (&self) -> server::Config {
-    server::Config { bind_address: SocketAddr { ip: Ipv4Addr(127, 0, 0, 1), port: 8001 } }
+    server::Config { bind_address: SocketAddr { ip: self.address, port: self.port } }
   }
 
   fn handle_request (&self, r: server::Request, w: &mut server::ResponseWriter) {
