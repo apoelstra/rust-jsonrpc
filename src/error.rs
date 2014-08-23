@@ -106,46 +106,46 @@ mod tests {
 
   #[test]
   fn test_parse_error() {
-    let resp = result_to_response(Err(standard_error(ParseError, None)), json::Number(1.0));
+    let resp = result_to_response(Err(standard_error(ParseError, None)), json::U64(1));
     assert!(resp.result.is_none());
     assert!(resp.error.is_some());
-    assert_eq!(resp.id, json::Number(1.0));
+    assert_eq!(resp.id, json::U64(1));
     assert_eq!(resp.error.get_ref().code, -32700);
   }
 
   #[test]
   fn test_invalid_request() {
-    let resp = result_to_response(Err(standard_error(InvalidRequest, None)), json::Number(1.0));
+    let resp = result_to_response(Err(standard_error(InvalidRequest, None)), json::I64(1));
     assert!(resp.result.is_none());
     assert!(resp.error.is_some());
-    assert_eq!(resp.id, json::Number(1.0));
+    assert_eq!(resp.id, json::I64(1));
     assert_eq!(resp.error.get_ref().code, -32600);
   }
 
   #[test]
   fn test_method_not_found() {
-    let resp = result_to_response(Err(standard_error(MethodNotFound, None)), json::Number(1.0));
+    let resp = result_to_response(Err(standard_error(MethodNotFound, None)), json::U64(1));
     assert!(resp.result.is_none());
     assert!(resp.error.is_some());
-    assert_eq!(resp.id, json::Number(1.0));
+    assert_eq!(resp.id, json::U64(1));
     assert_eq!(resp.error.get_ref().code, -32601);
   }
 
   #[test]
   fn test_invalid_params() {
-    let resp = result_to_response(Err(standard_error(InvalidParams, None)), json::Number(1.0));
+    let resp = result_to_response(Err(standard_error(InvalidParams, None)), json::String("123".to_string()));
     assert!(resp.result.is_none());
     assert!(resp.error.is_some());
-    assert_eq!(resp.id, json::Number(1.0));
+    assert_eq!(resp.id, json::String("123".to_string()));
     assert_eq!(resp.error.get_ref().code, -32602);
   }
 
   #[test]
   fn test_internal_error() {
-    let resp = result_to_response(Err(standard_error(InternalError, None)), json::Number(1.0));
+    let resp = result_to_response(Err(standard_error(InternalError, None)), json::I64(-1));
     assert!(resp.result.is_none());
     assert!(resp.error.is_some());
-    assert_eq!(resp.id, json::Number(1.0));
+    assert_eq!(resp.id, json::I64(-1));
     assert_eq!(resp.error.get_ref().code, -32603);
   }
 }
