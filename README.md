@@ -10,6 +10,7 @@ This includes a pair of macros to enable serialization/deserialization of
 structures without using stable or nightly. They can be used as follows:
 ```rust
 #[macro_use] extern crate jsonrpc;
+extern crate serde;
 
 struct MyStruct {
     elem1: bool,
@@ -49,6 +50,7 @@ example code
 
 ```rust
 #[macro_use] extern crate jsonrpc;
+extern crate serde;
 
 struct MyStruct {
     elem1: bool,
