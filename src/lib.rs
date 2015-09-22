@@ -1,5 +1,5 @@
 // Rust JSON-RPC Library
-// Written in 2014 by
+// Written in 2015 by
 //   Andrew Poelstra <apoelstra@wpsoftware.net>
 //
 // To the extent possible under law, the author(s) have dedicated all
@@ -14,63 +14,132 @@
 
 //! # Rust JSON-RPC Library
 //!
-//! This library supports the JSONRPC protocol on top of Tcp. In future
-//! other transports should be supported.
+//! Rust support for the JSON-RPC 2.0 protocol.
 //!
 
-#![crate_name = "jsonrpc"]
-#![crate_type = "dylib"]
+#![crate_type = "lib"]
 #![crate_type = "rlib"]
-
-// Experimental features we need
-#![feature(globs)]
-#![feature(macro_rules)]
-#![feature(overloaded_calls)]
-#![feature(unsafe_destructor)]
-#![feature(default_type_params)]
-
-#![comment = "Rust Bitcoin Library"]
-#![license = "CC0"]
+#![crate_type = "dylib"]
+#![crate_name = "jsonrpc"]
 
 // Coding conventions
-#![deny(non_uppercase_pattern_statics)]
-#![deny(uppercase_variables)]
+#![deny(non_upper_case_globals)]
 #![deny(non_camel_case_types)]
-#![deny(non_snake_case_functions)]
+#![deny(non_snake_case)]
 #![deny(unused_mut)]
-#![warn(missing_doc)]
+#![warn(missing_docs)]
 
-extern crate http;
-extern crate serialize;
-extern crate time;
+extern crate hyper;
+extern crate serde;
+extern crate serde_json as json;
 
-use serialize::json;
-
-pub mod decode;
+#[macro_use] mod macros;
+pub mod client;
 pub mod error;
-pub mod server;
 
-#[deriving(Clone, Show)]
+#[derive(Clone, Debug, PartialEq)]
 /// A JSONRPC request object
 pub struct Request {
-  /// The name of the RPC call
-  pub method: String,
-  /// Parameters to the RPC call
-  pub params: json::List,
-  /// Identifier for this Request, which should appear in the response
-  pub id: json::Json
+    /// The name of the RPC call
+    pub method: String,
+    /// Parameters to the RPC call
+    pub params: Vec<json::Value>,
+    /// Identifier for this Request, which should appear in the response
+    pub id: json::Value
 }
 
-#[deriving(Clone, Show, Encodable)]
+#[derive(Clone, Debug, PartialEq)]
 /// A JSONRPC response object
 pub struct Response {
-  /// A result if there is one, or null
-  pub result: Option<json::Json>,
-  /// An error if there is one, or null
-  pub error: Option<error::Error>,
-  /// Identifier from the request
-  pub id: json::Json
+    /// A result if there is one, or null
+    pub result: Option<json::Value>,
+    /// An error if there is one, or null
+    pub error: Option<error::RpcError>,
+    /// Identifier from the request
+    pub id: json::Value
 }
 
-pub type JsonResult<T> = Result<T, error::Error>;
+serde_struct_serialize!(
+    Request,
+    RequestMapVisitor,
+    method => 0,
+    params => 1,
+    id => 2
+);
+
+serde_struct_deserialize!(
+    Request,
+    RequestVisitor,
+    RequestField,
+    RequestFieldVisitor,
+    method => Method,
+    params => Params,
+    id => Id
+);
+
+serde_struct_serialize!(
+    Response,
+    ResponseMapVisitor,
+    result => 0,
+    error => 1,
+    id => 2
+);
+
+serde_struct_deserialize!(
+    Response,
+    ResponseVisitor,
+    ResponseField,
+    ResponseFieldVisitor,
+    result => Result,
+    error => Error,
+    id => Id
+);
+
+#[cfg(test)]
+mod tests {
+    use super::{Request, Response};
+    use super::error::RpcError;
+    use json;
+    use json::value::Value as JsonValue;
+
+    #[test]
+    fn request_serialize_round_trip() {
+        let original = Request {
+            method: "test".to_owned(),
+            params: vec![JsonValue::Null,
+                         JsonValue::Bool(false),
+                         JsonValue::Bool(true),
+                         JsonValue::String("test2".to_owned())],
+            id: JsonValue::U64(69)
+        };
+
+        let ser = json::to_string(&original).unwrap();
+        let des = json::from_str(&ser).unwrap();
+
+        assert_eq!(original, des);
+    }
+
+    #[test]
+    fn response_serialize_round_trip() {
+        let original_err = RpcError {
+            code: -77,
+            message: "test4".to_string(),
+            data: Some(JsonValue::Bool(true))
+        };
+
+        let original = Response {
+            result: Some(JsonValue::Array(vec![JsonValue::Null,
+                                               JsonValue::Bool(false),
+                                               JsonValue::Bool(true),
+                                               JsonValue::String("test2".to_owned())])),
+            error: Some(original_err),
+            id: JsonValue::U64(101)
+        };
+
+        let ser = json::to_string(&original).unwrap();
+        let des = json::from_str(&ser).unwrap();
+
+        assert_eq!(original, des);
+    }
+}
 
