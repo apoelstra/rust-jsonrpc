@@ -73,17 +73,11 @@ impl Client {
     }
 
     /// Builds a request
-    pub fn build_request(&mut self, name: String, params: JsonValue) -> Request {
-        // Make sure our params list is something sane
-        debug_assert!(params.is_null() || params.is_array());
+    pub fn build_request(&mut self, name: String, params: Vec<JsonValue>) -> Request {
         self.nonce += 1;
         Request {
             method: name,
-            params: match params {
-                JsonValue::Null => vec![],
-                JsonValue::Array(list) => list,
-                _ => unreachable!()
-            },
+            params: params,
             id: JsonValue::U64(self.nonce)
         }
     }
@@ -92,13 +86,12 @@ impl Client {
 #[cfg(test)]
 mod tests {
     use super::Client;
-    use json::value::Value as JsonValue;
 
     #[test]
     fn sanity() {
         let mut client = Client::new("localhost".to_owned(), None, None);
-        let req1 = client.build_request("test".to_owned(), JsonValue::Null);
-        let req2 = client.build_request("test".to_owned(), JsonValue::Null);
+        let req1 = client.build_request("test".to_owned(), vec![]);
+        let req2 = client.build_request("test".to_owned(), vec![]);
         assert!(req1 != req2);
     }
 }
