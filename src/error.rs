@@ -30,7 +30,11 @@ pub enum Error {
     /// Json error
     Json(json::error::Error),
     /// Client error
-    Hyper(hyper::error::Error)
+    Hyper(hyper::error::Error),
+    /// Error response
+    Rpc(RpcError),
+    /// Response has neither error nor result
+    NoErrorOrResult
 }
 
 /// Standard error responses, as described at at

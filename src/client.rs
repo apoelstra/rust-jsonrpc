@@ -68,6 +68,8 @@ impl Client {
         let request = client.post(&self.url).headers(headers).body(&request);
         let stream = try!(request.send().map_err(Error::Hyper));
         json::de::from_reader(stream).map_err(Error::Json)
+
+        // TODO check nonces match
     }
 
     /// Builds a request

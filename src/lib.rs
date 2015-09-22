@@ -37,6 +37,9 @@ extern crate serde_json as json;
 pub mod client;
 pub mod error;
 
+// Re-export error type
+pub use error::Error;
+
 #[derive(Clone, Debug, PartialEq)]
 /// A JSONRPC request object
 pub struct Request {
@@ -57,6 +60,30 @@ pub struct Response {
     pub error: Option<error::RpcError>,
     /// Identifier from the request
     pub id: json::Value
+}
+
+impl Response {
+    /// Extract the result from a response
+    pub fn result<T: serde::Deserialize>(&self) -> Result<T, Error> {
+        if let Some(ref e) = self.error {
+            return Err(Error::Rpc(e.clone()));
+        }
+        match self.result {
+            Some(ref res) => json::from_value(res.clone()).map_err(Error::Json),
+            None => Err(Error::NoErrorOrResult)
+        }
+    }
+
+    /// Extract the result from a response, consuming the response
+    pub fn into_result<T: serde::Deserialize>(self) -> Result<T, Error> {
+        if let Some(e) = self.error {
+            return Err(Error::Rpc(e));
+        }
+        match self.result {
+            Some(res) => json::from_value(res).map_err(Error::Json),
+            None => Err(Error::NoErrorOrResult)
+        }
+    }
 }
 
 serde_struct_serialize!(
@@ -140,6 +167,20 @@ mod tests {
         let des = json::from_str(&ser).unwrap();
 
         assert_eq!(original, des);
+    }
+
+    #[test]
+    fn response_extract() {
+        let obj = vec!["Mary", "had", "a", "little", "lamb"];
+        let response = Response {
+            result: Some(json::to_value(&obj)),
+            error: None,
+            id: JsonValue::Null
+        };
+        let recovered1: Vec<String> = response.result().unwrap();
+        let recovered2: Vec<String> = response.into_result().unwrap();
+        assert_eq!(obj, recovered1);
+        assert_eq!(obj, recovered2);
     }
 }
 
