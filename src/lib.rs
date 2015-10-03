@@ -84,6 +84,15 @@ impl Response {
             None => Err(Error::NoErrorOrResult)
         }
     }
+
+    /// Return the RPC error, if there was one, but do not check the result
+    pub fn check_error(self) -> Result<(), Error> {
+        if let Some(e) = self.error {
+            Err(Error::Rpc(e))
+        } else {
+            Ok(())
+        }
+    }
 }
 
 serde_struct_serialize!(
@@ -178,6 +187,7 @@ mod tests {
             id: JsonValue::Null
         };
         let recovered1: Vec<String> = response.result().unwrap();
+        assert!(response.clone().check_error().is_ok());
         let recovered2: Vec<String> = response.into_result().unwrap();
         assert_eq!(obj, recovered1);
         assert_eq!(obj, recovered2);
