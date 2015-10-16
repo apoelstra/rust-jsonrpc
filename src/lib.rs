@@ -95,40 +95,20 @@ impl Response {
     }
 }
 
-serde_struct_serialize!(
+serde_struct_impl!(
     Request,
-    RequestMapVisitor,
-    method => 0,
-    params => 1,
-    id => 2
+    request_mod,
+    method,
+    params,
+    id
 );
 
-serde_struct_deserialize!(
-    Request,
-    RequestVisitor,
-    RequestField,
-    RequestFieldVisitor,
-    method => Method,
-    params => Params,
-    id => Id
-);
-
-serde_struct_serialize!(
+serde_struct_impl!(
     Response,
-    ResponseMapVisitor,
-    result => 0,
-    error => 1,
-    id => 2
-);
-
-serde_struct_deserialize!(
-    Response,
-    ResponseVisitor,
-    ResponseField,
-    ResponseFieldVisitor,
-    result => Result,
-    error => Error,
-    id => Id
+    response_mod,
+    result,
+    error,
+    id
 );
 
 #[cfg(test)]

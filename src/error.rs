@@ -125,24 +125,13 @@ pub fn result_to_response(result: Result<JsonValue, RpcError>, id: JsonValue) ->
     }
 }
 
-serde_struct_serialize!(
+serde_struct_impl!(
     RpcError,
-    RpcErrorMapVisitor,
-    code => 0,
-    message => 1,
-    data => 2
+    rpc_error_mod,
+    code,
+    message,
+    data
 );
-
-serde_struct_deserialize!(
-    RpcError,
-    RpcErrorVisitor,
-    RpcErrorField,
-    RpcErrorFieldVisitor,
-    code => Code,
-    message => Message,
-    data => Data
-);
-
 
 #[cfg(test)]
 mod tests {
