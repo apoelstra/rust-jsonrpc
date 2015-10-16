@@ -22,6 +22,7 @@ use std::sync::{Arc, Mutex};
 
 use hyper::client::Client as HyperClient;
 use hyper::header::{Headers, Authorization, Basic};
+use hyper::status::StatusCode;
 use json;
 use json::value::Value as JsonValue;
 
@@ -69,9 +70,12 @@ impl Client {
         let client = HyperClient::new();
         let request = client.post(&self.url).headers(headers).body(&request);
         let stream = try!(request.send().map_err(Error::Hyper));
-        json::de::from_reader(stream).map_err(Error::Json)
-
-        // TODO check nonces match
+        if stream.status == StatusCode::Ok {
+            // TODO check nonces match
+            json::de::from_reader(stream).map_err(Error::Json)
+        } else {
+            Err(Error::BadStatus(stream.status))
+        }
     }
 
     /// Builds a request
@@ -93,7 +97,7 @@ impl Client {
 
 #[cfg(test)]
 mod tests {
-    use super::Client;
+    use super::*;
 
     #[test]
     fn sanity() {

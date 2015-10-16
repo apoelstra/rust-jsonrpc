@@ -29,6 +29,8 @@ use Response;
 pub enum Error {
     /// Json error
     Json(json::error::Error),
+    /// Client HTTP status error
+    BadStatus(hyper::status::StatusCode),
     /// Client error
     Hyper(hyper::error::Error),
     /// Error response
