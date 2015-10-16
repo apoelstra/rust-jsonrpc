@@ -18,6 +18,8 @@
 //! and parsing responses
 //!
 
+use std::sync::{Arc, Mutex};
+
 use hyper::client::Client as HyperClient;
 use hyper::header::{Headers, Authorization, Basic};
 use json;
@@ -27,12 +29,12 @@ use super::{Request, Response};
 use error::Error;
 
 /// A handle to a remote JSONRPC server
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Debug)]
 pub struct Client {
     url: String,
     user: Option<String>,
     pass: Option<String>,
-    nonce: u64
+    nonce: Arc<Mutex<u64>>
 }
 
 impl Client {
@@ -45,7 +47,7 @@ impl Client {
             url: url,
             user: user,
             pass: pass,
-            nonce: 0
+            nonce: Arc::new(Mutex::new(0))
         }
     }
 
@@ -73,13 +75,19 @@ impl Client {
     }
 
     /// Builds a request
-    pub fn build_request(&mut self, name: String, params: Vec<JsonValue>) -> Request {
-        self.nonce += 1;
+    pub fn build_request(&self, name: String, params: Vec<JsonValue>) -> Request {
+        let mut nonce = self.nonce.lock().unwrap();
+        *nonce += 1;
         Request {
             method: name,
             params: params,
-            id: JsonValue::U64(self.nonce)
+            id: JsonValue::U64(*nonce)
         }
+    }
+
+    /// Accessor for the last-used nonce
+    pub fn last_nonce(&self) -> u64 {
+        *self.nonce.lock().unwrap()
     }
 }
 
@@ -89,9 +97,12 @@ mod tests {
 
     #[test]
     fn sanity() {
-        let mut client = Client::new("localhost".to_owned(), None, None);
+        let client = Client::new("localhost".to_owned(), None, None);
+        assert_eq!(client.last_nonce(), 0);
         let req1 = client.build_request("test".to_owned(), vec![]);
+        assert_eq!(client.last_nonce(), 1);
         let req2 = client.build_request("test".to_owned(), vec![]);
+        assert_eq!(client.last_nonce(), 2);
         assert!(req1 != req2);
     }
 }
