@@ -30,11 +30,11 @@ use super::{Request, Response};
 use error::Error;
 
 /// A handle to a remote JSONRPC server
-#[derive(Clone, Debug)]
 pub struct Client {
     url: String,
     user: Option<String>,
     pass: Option<String>,
+    client: HyperClient,
     nonce: Arc<Mutex<u64>>
 }
 
@@ -48,6 +48,7 @@ impl Client {
             url: url,
             user: user,
             pass: pass,
+            client: HyperClient::new(),
             nonce: Arc::new(Mutex::new(0))
         }
     }
@@ -67,8 +68,7 @@ impl Client {
         }
 
         // Send request
-        let client = HyperClient::new();
-        let request = client.post(&self.url).headers(headers).body(&request);
+        let request = self.client.post(&self.url).headers(headers).body(&request);
         let stream = try!(request.send().map_err(Error::Hyper));
         if stream.status == StatusCode::Ok {
             // TODO check nonces match
