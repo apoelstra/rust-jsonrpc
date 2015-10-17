@@ -17,6 +17,8 @@
 //! Some useful methods for creating Error objects
 //!
 
+use std::{error, fmt};
+
 use hyper;
 use json;
 use json::value::Value as JsonValue;
@@ -37,6 +39,40 @@ pub enum Error {
     Rpc(RpcError),
     /// Response has neither error nor result
     NoErrorOrResult
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Error::Json(ref e) => write!(f, "JSON decode error: {}", e),
+            Error::BadStatus(s) => write!(f, "HTTP error {}", s),
+            Error::Hyper(ref e) => write!(f, "Hyper error: {}", e),
+            Error::Rpc(ref r) => write!(f, "RPC error response: {:?}", r),
+            Error::NoErrorOrResult => f.write_str("RPC response had neither error nor result")
+        }
+    }
+}
+
+impl error::Error for Error {
+    fn description(&self) -> &str {
+        match *self {
+            Error::Json(_) => "JSON decode error",
+            Error::BadStatus(_) => "Bad HTTP status",
+            Error::Hyper(_) => "Hyper error",
+            Error::Rpc(_) => "RPC error response",
+            Error::NoErrorOrResult => "Malformed RPC response",
+        }
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        match *self {
+            Error::Json(ref e) => Some(e),
+            Error::BadStatus(_) => None,
+            Error::Hyper(ref e) => Some(e),
+            Error::Rpc(_) => None,
+            Error::NoErrorOrResult => None
+        }
+    }
 }
 
 /// Standard error responses, as described at at
@@ -61,6 +97,7 @@ pub enum Error {
 /// RIGHTS OR ANY IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A
 /// PARTICULAR PURPOSE.
 /// 
+#[derive(Debug)]
 pub enum StandardError {
     /// Invalid JSON was received by the server.
     /// An error occurred on the server while parsing the JSON text.
