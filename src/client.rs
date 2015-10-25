@@ -85,7 +85,8 @@ impl Client {
         Request {
             method: name,
             params: params,
-            id: JsonValue::U64(*nonce)
+            id: JsonValue::U64(*nonce),
+            jsonrpc: JsonValue::String(String::from("2.0"))
         }
     }
 
