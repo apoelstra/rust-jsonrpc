@@ -48,7 +48,9 @@ pub struct Request {
     /// Parameters to the RPC call
     pub params: Vec<json::Value>,
     /// Identifier for this Request, which should appear in the response
-    pub id: json::Value
+    pub id: json::Value,
+    /// jsonrpc field, MUST be "2.0"
+    pub jsonrpc: json::Value,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -99,7 +101,8 @@ serde_struct_impl!(
     Request,
     method,
     params,
-    id
+    id,
+    jsonrpc
 );
 
 serde_struct_impl!(
@@ -124,7 +127,8 @@ mod tests {
                          JsonValue::Bool(false),
                          JsonValue::Bool(true),
                          JsonValue::String("test2".to_owned())],
-            id: JsonValue::U64(69)
+            id: JsonValue::U64(69),
+            jsonrpc: JsonValue::String(String::from("2.0"))
         };
 
         let ser = json::to_string(&original).unwrap();
