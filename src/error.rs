@@ -164,7 +164,6 @@ pub fn result_to_response(result: Result<JsonValue, RpcError>, id: JsonValue) ->
 
 serde_struct_impl!(
     RpcError,
-    rpc_error_mod,
     code,
     message,
     data

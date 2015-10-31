@@ -6,7 +6,7 @@ Rudimentary support for sending JSONRPC 2.0 requests and receiving responses.
 
 ## Serde Support
 
-This includes a pair of macros to enable serialization/deserialization of
+This includes a of macro to enable serialization/deserialization of
 structures without using stable or nightly. They can be used as follows:
 ```rust
 #[macro_use] extern crate jsonrpc;
@@ -17,31 +17,39 @@ struct MyStruct {
     elem2: String,
     elem3: Vec<usize>
 }
+serde_struct_impl!(MyStruct, elem1, elem2, elem3 <- "alternate name for elem3");
+```
 
-serde_struct_serialize!(
-    MyStruct,
-    MyStructMapVisitor,
-    elem1 => 0,
-    elem2 => 1,
-    elem3 => 2
-);
+There is also a variant of this for enums representing structures that might
+have one of a few possible forms. For example
+```
+struct Variant1 {
+    success: bool,
+    success_message: String
+}
 
-serde_struct_deserialize!(
-    MyStruct,
-    MyStructVisitor,
-    MyStructField,
-    MyStructFieldVisitor,
-    elem1 => Elem1,
-    elem2 => Elem2,
-    elem3 => Elem3
+struct Variant2 {
+    success: bool,
+    errors: Vec<String>
+}
+
+enum Reply {
+    Good(Variant1),
+    Bad(Variant2)
+}
+serde_struct_enum_impl!(Reply, reply_mod,
+    Variant1, success, success_message;
+    Variant2, success, errors
 );
 ```
-The important parts in the above are that the name of the structure and names
-of the fields match those of the actual struct; every other identifier is used
-internally to the macros and can be made up.
+Here `reply_mod` just needs to be something unique. It is a limitation of the
+macro system (specifically, I cannot gensym a module) that this has to be
+there. Suggestions for how to remove this wart on the interface are welcome.
 
-(If anyone has ideas for how to clean up this external interface, please let
-me know.)
+Note that this macro works by returning the first variant for which all
+fields are present. This means that if one variant is a superset of another,
+the larger one should be given first to the macro to prevent the smaller
+from always being matched.
 
 ## JSONRPC
 

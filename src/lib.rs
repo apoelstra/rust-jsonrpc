@@ -97,7 +97,6 @@ impl Response {
 
 serde_struct_impl!(
     Request,
-    request_mod,
     method,
     params,
     id
@@ -105,7 +104,6 @@ serde_struct_impl!(
 
 serde_struct_impl!(
     Response,
-    response_mod,
     result,
     error,
     id
