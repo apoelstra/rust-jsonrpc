@@ -18,11 +18,13 @@
 //! and parsing responses
 //!
 
+use std::io;
 use std::sync::{Arc, Mutex};
 
 use hyper::client::Client as HyperClient;
 use hyper::header::{Headers, Authorization, Basic};
 use hyper::status::StatusCode;
+use hyper;
 use json;
 use json::value::Value as JsonValue;
 
@@ -56,7 +58,7 @@ impl Client {
     /// Sends a request to a client
     pub fn send_request(&self, request: &Request) -> Result<Response, Error> {
         // Build request
-        let request = json::to_string(&request).unwrap();
+        let request_str = json::to_string(&request).unwrap();
 
         // Setup connection
         let mut headers = Headers::new();
@@ -68,8 +70,27 @@ impl Client {
         }
 
         // Send request
-        let request = self.client.post(&self.url).headers(headers).body(&request);
-        let stream = try!(request.send().map_err(Error::Hyper));
+        let retry_headers = headers.clone();
+        let request = self.client.post(&self.url).headers(headers).body(&request_str);
+        let stream = match request.send() {
+            Ok(s) => s,
+            // Hyper maintains a pool of TCP connections to its various clients,
+            // and when one drops it cannot tell until it tries sending. In this
+            // case the appropriate thing is to re-send, which will cause hyper
+            // to open a new connection. Jonathan Reem explained this to me on
+            // IRC, citing vague technical reasons that the library itself cannot
+            // do the retry transparently.
+            Err(hyper::error::Error::Io(e)) => {
+                if e.kind() == io::ErrorKind::ConnectionAborted {
+                    try!(self.client.post(&self.url).headers(retry_headers)
+                                                    .body(&request_str)
+                                                    .send().map_err(Error::Hyper))
+                } else {
+                    return Err(Error::Hyper(hyper::error::Error::Io(e)));
+                }
+            }
+            Err(e) => { return Err(Error::Hyper(e)); }
+        };
         if stream.status == StatusCode::Ok {
             // TODO check nonces match
             json::de::from_reader(stream).map_err(Error::Json)
