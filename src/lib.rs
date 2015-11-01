@@ -61,7 +61,9 @@ pub struct Response {
     /// An error if there is one, or null
     pub error: Option<error::RpcError>,
     /// Identifier from the request
-    pub id: json::Value
+    pub id: json::Value,
+    /// jsonrpc field, MUST be "2.0"
+    pub jsonrpc: json::Value
 }
 
 impl Response {
@@ -109,7 +111,8 @@ serde_struct_impl!(
     Response,
     result,
     error,
-    id
+    id,
+    jsonrpc
 );
 
 #[cfg(test)]
@@ -151,7 +154,8 @@ mod tests {
                                                JsonValue::Bool(true),
                                                JsonValue::String("test2".to_owned())])),
             error: Some(original_err),
-            id: JsonValue::U64(101)
+            id: JsonValue::U64(101),
+            jsonrpc: JsonValue::String(String::from("2.0"))
         };
 
         let ser = json::to_string(&original).unwrap();
@@ -166,7 +170,8 @@ mod tests {
         let response = Response {
             result: Some(json::to_value(&obj)),
             error: None,
-            id: JsonValue::Null
+            id: JsonValue::Null,
+            jsonrpc: JsonValue::String(String::from("2.0"))
         };
         let recovered1: Vec<String> = response.result().unwrap();
         assert!(response.clone().check_error().is_ok());
