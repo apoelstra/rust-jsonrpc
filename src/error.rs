@@ -157,8 +157,8 @@ pub fn standard_error(code: StandardError, data: Option<JsonValue>) -> RpcError 
 /// Converts a Rust `Result` to a JSONRPC response object
 pub fn result_to_response(result: Result<JsonValue, RpcError>, id: JsonValue) -> Response {
     match result {
-        Ok(data) => Response { jsonrpc: JsonValue::String(String::from("2.0")), result: Some(data), error: None, id: id },
-        Err(err) => Response { jsonrpc: JsonValue::String(String::from("2.0")), result: None, error: Some(err), id: id }
+        Ok(data) => Response { jsonrpc: Some(JsonValue::String(String::from("2.0"))), result: Some(data), error: None, id: id },
+        Err(err) => Response { jsonrpc: Some(JsonValue::String(String::from("2.0"))), result: None, error: Some(err), id: id }
     }
 }
 

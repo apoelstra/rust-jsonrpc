@@ -63,7 +63,7 @@ pub struct Response {
     /// Identifier from the request
     pub id: json::Value,
     /// jsonrpc field, MUST be "2.0"
-    pub jsonrpc: json::Value
+    pub jsonrpc: Option<json::Value>
 }
 
 impl Response {
@@ -155,7 +155,7 @@ mod tests {
                                                JsonValue::String("test2".to_owned())])),
             error: Some(original_err),
             id: JsonValue::U64(101),
-            jsonrpc: JsonValue::String(String::from("2.0"))
+            jsonrpc: Some(JsonValue::String(String::from("2.0")))
         };
 
         let ser = json::to_string(&original).unwrap();
@@ -171,7 +171,7 @@ mod tests {
             result: Some(json::to_value(&obj)),
             error: None,
             id: JsonValue::Null,
-            jsonrpc: JsonValue::String(String::from("2.0"))
+            jsonrpc: Some(JsonValue::String(String::from("2.0")))
         };
         let recovered1: Vec<String> = response.result().unwrap();
         assert!(response.clone().check_error().is_ok());
