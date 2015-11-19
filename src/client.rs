@@ -23,7 +23,6 @@ use std::sync::{Arc, Mutex};
 
 use hyper::client::Client as HyperClient;
 use hyper::header::{Headers, Authorization, Basic};
-use hyper::status::StatusCode;
 use hyper;
 use json;
 use json::value::Value as JsonValue;
@@ -91,12 +90,11 @@ impl Client {
             }
             Err(e) => { return Err(Error::Hyper(e)); }
         };
-        if stream.status == StatusCode::Ok {
-            // TODO check nonces match
-            json::de::from_reader(stream).map_err(Error::Json)
-        } else {
-            Err(Error::BadStatus(stream.status))
-        }
+
+        // nb we ignore stream.status since we expect the body
+        // to contain information about any error
+        // TODO check nonces match
+        json::de::from_reader(stream).map_err(Error::Json)
     }
 
     /// Builds a request

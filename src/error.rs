@@ -31,8 +31,6 @@ use Response;
 pub enum Error {
     /// Json error
     Json(json::error::Error),
-    /// Client HTTP status error
-    BadStatus(hyper::status::StatusCode),
     /// Client error
     Hyper(hyper::error::Error),
     /// Error response
@@ -45,7 +43,6 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::Json(ref e) => write!(f, "JSON decode error: {}", e),
-            Error::BadStatus(s) => write!(f, "HTTP error {}", s),
             Error::Hyper(ref e) => write!(f, "Hyper error: {}", e),
             Error::Rpc(ref r) => write!(f, "RPC error response: {:?}", r),
             Error::NoErrorOrResult => f.write_str("RPC response had neither error nor result")
@@ -57,7 +54,6 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
             Error::Json(_) => "JSON decode error",
-            Error::BadStatus(_) => "Bad HTTP status",
             Error::Hyper(_) => "Hyper error",
             Error::Rpc(_) => "RPC error response",
             Error::NoErrorOrResult => "Malformed RPC response",
@@ -67,7 +63,6 @@ impl error::Error for Error {
     fn cause(&self) -> Option<&error::Error> {
         match *self {
             Error::Json(ref e) => Some(e),
-            Error::BadStatus(_) => None,
             Error::Hyper(ref e) => Some(e),
             Error::Rpc(_) => None,
             Error::NoErrorOrResult => None
