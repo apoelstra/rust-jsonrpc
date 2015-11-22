@@ -20,9 +20,8 @@
 use std::{error, fmt};
 
 use hyper;
-use json;
-use json::value::Value as JsonValue;
 use serde;
+use strason::{self, Json};
 
 use Response;
 
@@ -30,13 +29,29 @@ use Response;
 #[derive(Debug)]
 pub enum Error {
     /// Json error
-    Json(json::error::Error),
+    Json(strason::Error),
     /// Client error
     Hyper(hyper::error::Error),
     /// Error response
     Rpc(RpcError),
     /// Response has neither error nor result
-    NoErrorOrResult
+    NoErrorOrResult,
+    /// Response to a request did not have the expected nonce
+    NonceMismatch,
+    /// Response to a request had a jsonrpc field other than "2.0"
+    VersionMismatch
+}
+
+impl From<strason::Error> for Error {
+    fn from(e: strason::Error) -> Error { Error::Json(e) }
+}
+
+impl From<hyper::error::Error> for Error {
+    fn from(e: hyper::error::Error) -> Error { Error::Hyper(e) }
+}
+
+impl From<RpcError> for Error {
+    fn from(e: RpcError) -> Error { Error::Rpc(e) }
 }
 
 impl fmt::Display for Error {
@@ -45,7 +60,7 @@ impl fmt::Display for Error {
             Error::Json(ref e) => write!(f, "JSON decode error: {}", e),
             Error::Hyper(ref e) => write!(f, "Hyper error: {}", e),
             Error::Rpc(ref r) => write!(f, "RPC error response: {:?}", r),
-            Error::NoErrorOrResult => f.write_str("RPC response had neither error nor result")
+            _ => f.write_str(error::Error::description(self))
         }
     }
 }
@@ -57,6 +72,8 @@ impl error::Error for Error {
             Error::Hyper(_) => "Hyper error",
             Error::Rpc(_) => "RPC error response",
             Error::NoErrorOrResult => "Malformed RPC response",
+            Error::NonceMismatch => "Nonce of response did not match nonce of request",
+            Error::VersionMismatch => "`jsonrpc` field set to non-\"2.0\"",
         }
     }
 
@@ -64,8 +81,7 @@ impl error::Error for Error {
         match *self {
             Error::Json(ref e) => Some(e),
             Error::Hyper(ref e) => Some(e),
-            Error::Rpc(_) => None,
-            Error::NoErrorOrResult => None
+            _ => None
         }
     }
 }
@@ -115,11 +131,11 @@ pub struct RpcError {
     /// A string describing the error
     pub message: String,
     /// Additional data specific to the error
-    pub data: Option<JsonValue>
+    pub data: Option<Json>
 }
 
 /// Create a standard error responses
-pub fn standard_error(code: StandardError, data: Option<JsonValue>) -> RpcError {
+pub fn standard_error(code: StandardError, data: Option<Json>) -> RpcError {
     match code {
         StandardError::ParseError => RpcError {
             code: -32700,
@@ -150,10 +166,10 @@ pub fn standard_error(code: StandardError, data: Option<JsonValue>) -> RpcError 
 }
 
 /// Converts a Rust `Result` to a JSONRPC response object
-pub fn result_to_response(result: Result<JsonValue, RpcError>, id: JsonValue) -> Response {
+pub fn result_to_response(result: Result<Json, RpcError>, id: Json) -> Response {
     match result {
-        Ok(data) => Response { jsonrpc: Some(JsonValue::String(String::from("2.0"))), result: Some(data), error: None, id: id },
-        Err(err) => Response { jsonrpc: Some(JsonValue::String(String::from("2.0"))), result: None, error: Some(err), id: id }
+        Ok(data) => Response { result: Some(data), error: None, id: id, jsonrpc: Some(String::from("2.0")) },
+        Err(err) => Response { result: None, error: Some(err), id: id, jsonrpc: Some(String::from("2.0")) }
     }
 }
 
@@ -169,50 +185,48 @@ mod tests {
     use super::StandardError::{ParseError, InvalidRequest, MethodNotFound, InvalidParams, InternalError};
     use super::{standard_error, result_to_response};
 
-    use json::value::Value as JsonValue;
-
     #[test]
     fn test_parse_error() {
-        let resp = result_to_response(Err(standard_error(ParseError, None)), JsonValue::U64(1));
+        let resp = result_to_response(Err(standard_error(ParseError, None)), From::from(1));
         assert!(resp.result.is_none());
         assert!(resp.error.is_some());
-        assert_eq!(resp.id, JsonValue::U64(1));
+        assert_eq!(resp.id, From::from(1));
         assert_eq!(resp.error.unwrap().code, -32700);
     }
 
     #[test]
     fn test_invalid_request() {
-        let resp = result_to_response(Err(standard_error(InvalidRequest, None)), JsonValue::I64(1));
+        let resp = result_to_response(Err(standard_error(InvalidRequest, None)), From::from(1));
         assert!(resp.result.is_none());
         assert!(resp.error.is_some());
-        assert_eq!(resp.id, JsonValue::I64(1));
+        assert_eq!(resp.id, From::from(1));
         assert_eq!(resp.error.unwrap().code, -32600);
     }
 
     #[test]
     fn test_method_not_found() {
-        let resp = result_to_response(Err(standard_error(MethodNotFound, None)), JsonValue::U64(1));
+        let resp = result_to_response(Err(standard_error(MethodNotFound, None)), From::from(1));
         assert!(resp.result.is_none());
         assert!(resp.error.is_some());
-        assert_eq!(resp.id, JsonValue::U64(1));
+        assert_eq!(resp.id, From::from(1));
         assert_eq!(resp.error.unwrap().code, -32601);
     }
 
     #[test]
     fn test_invalid_params() {
-        let resp = result_to_response(Err(standard_error(InvalidParams, None)), JsonValue::String("123".to_string()));
+        let resp = result_to_response(Err(standard_error(InvalidParams, None)), From::from("123"));
         assert!(resp.result.is_none());
         assert!(resp.error.is_some());
-        assert_eq!(resp.id, JsonValue::String("123".to_string()));
+        assert_eq!(resp.id, From::from("123"));
         assert_eq!(resp.error.unwrap().code, -32602);
     }
 
     #[test]
     fn test_internal_error() {
-        let resp = result_to_response(Err(standard_error(InternalError, None)), JsonValue::I64(-1));
+        let resp = result_to_response(Err(standard_error(InternalError, None)), From::from(-1));
         assert!(resp.result.is_none());
         assert!(resp.error.is_some());
-        assert_eq!(resp.id, JsonValue::I64(-1));
+        assert_eq!(resp.id, From::from(-1));
         assert_eq!(resp.error.unwrap().code, -32603);
     }
 }

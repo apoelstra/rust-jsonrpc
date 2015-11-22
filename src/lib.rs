@@ -31,12 +31,13 @@
 
 extern crate hyper;
 extern crate serde;
-extern crate serde_json as json;
+extern crate strason;
 
 #[macro_use] mod macros;
 pub mod client;
 pub mod error;
 
+use strason::Json;
 // Re-export error type
 pub use error::Error;
 
@@ -46,24 +47,24 @@ pub struct Request {
     /// The name of the RPC call
     pub method: String,
     /// Parameters to the RPC call
-    pub params: Vec<json::Value>,
+    pub params: Vec<Json>,
     /// Identifier for this Request, which should appear in the response
-    pub id: json::Value,
+    pub id: Json,
     /// jsonrpc field, MUST be "2.0"
-    pub jsonrpc: json::Value,
+    pub jsonrpc: Option<String>
 }
 
 #[derive(Clone, Debug, PartialEq)]
 /// A JSONRPC response object
 pub struct Response {
     /// A result if there is one, or null
-    pub result: Option<json::Value>,
+    pub result: Option<Json>,
     /// An error if there is one, or null
     pub error: Option<error::RpcError>,
-    /// Identifier from the request
-    pub id: json::Value,
+    /// Identifier for this Request, which should match that of the request
+    pub id: Json,
     /// jsonrpc field, MUST be "2.0"
-    pub jsonrpc: Option<json::Value>
+    pub jsonrpc: Option<String>
 }
 
 impl Response {
@@ -73,7 +74,7 @@ impl Response {
             return Err(Error::Rpc(e.clone()));
         }
         match self.result {
-            Some(ref res) => json::from_value(res.clone()).map_err(Error::Json),
+            Some(ref res) => res.clone().into_deserialize().map_err(Error::Json),
             None => Err(Error::NoErrorOrResult)
         }
     }
@@ -84,7 +85,7 @@ impl Response {
             return Err(Error::Rpc(e));
         }
         match self.result {
-            Some(res) => json::from_value(res).map_err(Error::Json),
+            Some(res) => res.into_deserialize().map_err(Error::Json),
             None => Err(Error::NoErrorOrResult)
         }
     }
@@ -119,23 +120,22 @@ serde_struct_impl!(
 mod tests {
     use super::{Request, Response};
     use super::error::RpcError;
-    use json;
-    use json::value::Value as JsonValue;
+    use strason::{self, Json};
 
     #[test]
     fn request_serialize_round_trip() {
         let original = Request {
             method: "test".to_owned(),
-            params: vec![JsonValue::Null,
-                         JsonValue::Bool(false),
-                         JsonValue::Bool(true),
-                         JsonValue::String("test2".to_owned())],
-            id: JsonValue::U64(69),
-            jsonrpc: JsonValue::String(String::from("2.0"))
+            params: vec![From::from(()),
+                         From::from(false),
+                         From::from(true),
+                         From::from("test2")],
+            id: From::from("69"),
+            jsonrpc: Some(String::from("2.0"))
         };
 
-        let ser = json::to_string(&original).unwrap();
-        let des = json::from_str(&ser).unwrap();
+        let ser = strason::from_serialize(&original).unwrap();
+        let des = ser.into_deserialize().unwrap();
 
         assert_eq!(original, des);
     }
@@ -144,22 +144,22 @@ mod tests {
     fn response_serialize_round_trip() {
         let original_err = RpcError {
             code: -77,
-            message: "test4".to_string(),
-            data: Some(JsonValue::Bool(true))
+            message: "test4".to_owned(),
+            data: Some(From::from(true))
         };
 
         let original = Response {
-            result: Some(JsonValue::Array(vec![JsonValue::Null,
-                                               JsonValue::Bool(false),
-                                               JsonValue::Bool(true),
-                                               JsonValue::String("test2".to_owned())])),
+            result: Some(From::<Vec<Json>>::from(vec![From::from(()),
+                                                 From::from(false),
+                                                 From::from(true),
+                                                 From::from("test2")])),
             error: Some(original_err),
-            id: JsonValue::U64(101),
-            jsonrpc: Some(JsonValue::String(String::from("2.0")))
+            id: From::from(101),
+            jsonrpc: Some(String::from("2.0"))
         };
 
-        let ser = json::to_string(&original).unwrap();
-        let des = json::from_str(&ser).unwrap();
+        let ser = strason::from_serialize(&original).unwrap();
+        let des = ser.into_deserialize().unwrap();
 
         assert_eq!(original, des);
     }
@@ -168,10 +168,10 @@ mod tests {
     fn response_extract() {
         let obj = vec!["Mary", "had", "a", "little", "lamb"];
         let response = Response {
-            result: Some(json::to_value(&obj)),
+            result: Some(strason::from_serialize(&obj).unwrap()),
             error: None,
-            id: JsonValue::Null,
-            jsonrpc: Some(JsonValue::String(String::from("2.0")))
+            id: From::from(()),
+            jsonrpc: Some(String::from("2.0"))
         };
         let recovered1: Vec<String> = response.result().unwrap();
         assert!(response.clone().check_error().is_ok());
