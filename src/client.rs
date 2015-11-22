@@ -96,7 +96,8 @@ impl Client {
         // TODO check nonces match
         let response_json = try!(Json::from_reader(stream));
         let response: Response = try!(response_json.into_deserialize());
-        if response.jsonrpc != Some(From::from("2.0")) {
+        if response.jsonrpc != None &&
+           response.jsonrpc != Some(From::from("2.0")) {
             return Err(Error::VersionMismatch);
         }
         if response.id != request.id {
