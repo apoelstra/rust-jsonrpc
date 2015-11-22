@@ -93,7 +93,6 @@ impl Client {
 
         // nb we ignore stream.status since we expect the body
         // to contain information about any error
-        // TODO check nonces match
         let response_json = try!(Json::from_reader(stream));
         let response: Response = try!(response_json.into_deserialize());
         if response.jsonrpc != None &&
