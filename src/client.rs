@@ -19,6 +19,7 @@
 //!
 
 use std::io;
+use std::io::Read;
 use std::sync::{Arc, Mutex};
 
 use hyper::client::Client as HyperClient;
@@ -71,7 +72,7 @@ impl Client {
         // Send request
         let retry_headers = headers.clone();
         let hyper_request = self.client.post(&self.url).headers(headers).body(&request_raw[..]);
-        let stream = match hyper_request.send() {
+        let mut stream = match hyper_request.send() {
             Ok(s) => s,
             // Hyper maintains a pool of TCP connections to its various clients,
             // and when one drops it cannot tell until it tries sending. In this
@@ -80,6 +81,7 @@ impl Client {
             // IRC, citing vague technical reasons that the library itself cannot
             // do the retry transparently.
             Err(hyper::error::Error::Io(e)) => {
+                println!("{:?}", e.kind());
                 if e.kind() == io::ErrorKind::ConnectionAborted {
                     try!(self.client.post(&self.url).headers(retry_headers)
                                                     .body(&request_raw[..])
@@ -93,7 +95,8 @@ impl Client {
 
         // nb we ignore stream.status since we expect the body
         // to contain information about any error
-        let response_json = try!(Json::from_reader(stream));
+        let response_json = try!(Json::from_reader(&mut stream));
+        stream.bytes().count();  // Drain the stream so it can be reused
         let response: Response = try!(response_json.into_deserialize());
         if response.jsonrpc != None &&
            response.jsonrpc != Some(From::from("2.0")) {
