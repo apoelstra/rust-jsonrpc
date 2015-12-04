@@ -98,6 +98,9 @@ impl Response {
             Ok(())
         }
     }
+
+    /// Returns whether or not the `result` field is empty
+    pub fn is_none(&self) -> bool { self.result.is_none() }
 }
 
 serde_struct_impl!(
@@ -162,6 +165,26 @@ mod tests {
         let des = ser.into_deserialize().unwrap();
 
         assert_eq!(original, des);
+    }
+
+    #[test]
+    fn response_is_none() {
+        let joanna = Response {
+            result: Some(From::from(true)),
+            error: None,
+            id: From::from(81),
+            jsonrpc: Some(String::from("2.0"))
+        };
+
+        let bill = Response {
+            result: None,
+            error: None,
+            id: From::from(66),
+            jsonrpc: Some(String::from("2.0"))
+        };
+
+        assert!(!joanna.is_none());
+        assert!(bill.is_none());
     }
 
     #[test]
