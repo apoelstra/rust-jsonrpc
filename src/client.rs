@@ -81,7 +81,6 @@ impl Client {
             // IRC, citing vague technical reasons that the library itself cannot
             // do the retry transparently.
             Err(hyper::error::Error::Io(e)) => {
-                println!("{:?}", e.kind());
                 if e.kind() == io::ErrorKind::ConnectionAborted {
                     try!(self.client.post(&self.url).headers(retry_headers)
                                                     .body(&request_raw[..])
