@@ -37,15 +37,11 @@ enum Reply {
     Good(Variant1),
     Bad(Variant2)
 }
-serde_struct_enum_impl!(Reply, reply_mod,
-    Variant1, success, success_message;
-    Variant2, success, errors
+serde_struct_enum_impl!(Reply,
+    Good, Variant1, success, success_message;
+    Bad, Variant2, success, errors
 );
 ```
-Here `reply_mod` just needs to be something unique. It is a limitation of the
-macro system (specifically, I cannot gensym a module) that this has to be
-there. Suggestions for how to remove this wart on the interface are welcome.
-
 Note that this macro works by returning the first variant for which all
 fields are present. This means that if one variant is a superset of another,
 the larger one should be given first to the macro to prevent the smaller
@@ -66,15 +62,7 @@ struct MyStruct {
     elem3: Vec<usize>
 }
 
-serde_struct_deserialize!(
-    MyStruct,
-    MyStructVisitor,
-    MyStructField,
-    MyStructFieldVisitor,
-    elem1 => Elem1,
-    elem2 => Elem2,
-    elem3 => Elem3
-);
+serde_struct_impl!(MyStruct, elem1, elem2, elem3);
 
 fn main() {
     // The two Nones are for user/pass for authentication
