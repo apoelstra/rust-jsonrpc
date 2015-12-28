@@ -19,6 +19,8 @@ struct MyStruct {
 }
 serde_struct_impl!(MyStruct, elem1, elem2, elem3 <- "alternate name for elem3");
 ```
+When encoding, the field will be given its alternate name if one is
+present. Otherwise the ordinary name is used.
 
 There is also a variant of this for enums representing structures that might
 have one of a few possible forms. For example

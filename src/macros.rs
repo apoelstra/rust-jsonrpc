@@ -109,7 +109,10 @@ macro_rules! serde_struct_impl {
                         match self.state {
                             $(State::$fe => {
                                 self.state = unsafe { ::std::mem::transmute(self.state as u16 + 1) };
-                                Ok(Some(try!(serializer.visit_struct_elt(stringify!($fe), &self.value.$fe))))
+                                // Use the last alternate name for serialization; in the common case
+                                // with zero or one alternates this does the RIght Thing
+                                let names = [stringify!($fe), $($alt),*];
+                                Ok(Some(try!(serializer.visit_struct_elt(names[names.len() - 1], &self.value.$fe))))
                             })*
                             State::Finished => {
                                 Ok(None)
