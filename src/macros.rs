@@ -49,7 +49,7 @@ macro_rules! serde_struct_impl {
                     fn deserialize<D>(deserializer: &mut D) -> Result<Enum, D::Error>
                         where D: ::serde::de::Deserializer
                     {
-                        deserializer.visit(EnumVisitor)
+                        deserializer.visit_str(EnumVisitor)
                     }
                 }
 
@@ -164,7 +164,7 @@ macro_rules! serde_struct_enum_impl {
                     fn deserialize<D>(deserializer: &mut D) -> Result<Enum, D::Error>
                         where D: ::serde::de::Deserializer
                     {
-                        deserializer.visit(EnumVisitor)
+                        deserializer.visit_str(EnumVisitor)
                     }
                 }
 
