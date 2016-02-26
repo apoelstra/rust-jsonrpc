@@ -1,7 +1,7 @@
 
 [package]
 name		= "jsonrpc"
-version		= "0.7.2"
+version		= "0.7.3"
 authors		= ["Andrew Poelstra <apoelstra@wpsoftware.net>"]
 license		= "CC0-1.0"
 homepage	= "https://github.com/apoelstra/rust-jsonrpc/"
@@ -16,8 +16,10 @@ name = "jsonrpc"
 path = "src/lib.rs"
 
 [dependencies]
-hyper = "0.6"
 serde = "0.6"
 strason = "0.3"
 
+[dependencies.hyper]
+version = "0.6"
+default-features = false
 
