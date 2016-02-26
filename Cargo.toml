@@ -23,3 +23,6 @@ strason = "0.3"
 version = "0.6"
 default-features = false
 
+[features]
+default = ["ssl"]
+ssl = ["hyper/ssl"]
