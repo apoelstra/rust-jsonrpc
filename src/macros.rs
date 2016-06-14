@@ -18,6 +18,49 @@
 //!
 
 #[macro_export]
+macro_rules! __rust_jsonrpc_internal__define_anything_type {
+    () => (
+        struct Anything;
+        struct AnythingVisitor;
+        impl ::serde::de::Visitor for AnythingVisitor {
+            type Value = Anything;
+
+            fn visit_bool<E>(&mut self, _: bool) -> Result<Anything, E> { Ok(Anything) }
+            fn visit_i64<E>(&mut self, _: i64) -> Result<Anything, E> { Ok(Anything) }
+            fn visit_u64<E>(&mut self, _: u64) -> Result<Anything, E> { Ok(Anything) }
+            fn visit_f64<E>(&mut self, _: f64) -> Result<Anything, E> { Ok(Anything) }
+            fn visit_str<E>(&mut self, _: &str) -> Result<Anything, E> { Ok(Anything) }
+            fn visit_string<E>(&mut self, _: String) -> Result<Anything, E> { Ok(Anything) }
+            fn visit_unit<E>(&mut self) -> Result<Anything, E> { Ok(Anything) }
+            fn visit_none<E>(&mut self) -> Result<Anything, E> { Ok(Anything) }
+
+            fn visit_some<D: ::serde::de::Deserializer>(&mut self, d: &mut D) -> Result<Anything, D::Error> {
+                serde::de::Deserialize::deserialize(d)
+            }
+
+            fn visit_seq<V: ::serde::de::SeqVisitor>(&mut self, v: V) -> Result<Anything, V::Error> {
+                let _: Vec<Anything> = try!(::serde::de::impls::VecVisitor::new().visit_seq(v));
+                Ok(Anything)
+            }
+
+            fn visit_map<V: ::serde::de::MapVisitor>(&mut self, mut v: V) -> Result<Anything, V::Error> {
+                while let Some((Anything, Anything)) = try!(v.visit()) { }
+                try!(v.end());
+                Ok(Anything)
+            }
+        }
+
+        impl ::serde::Deserialize for Anything {
+            fn deserialize<D>(deserializer: &mut D) -> Result<Anything, D::Error>
+                where D: ::serde::de::Deserializer
+            {
+                deserializer.visit(AnythingVisitor)
+            }
+        }
+    )
+}
+
+#[macro_export]
 macro_rules! serde_struct_impl {
     ($name:ident, $($fe:ident $(<- $alt:expr)*),*) => (
         impl ::serde::Deserialize for $name {
@@ -25,43 +68,7 @@ macro_rules! serde_struct_impl {
                 where D: serde::de::Deserializer
             {
                 // begin type defs
-                struct Anything;
-                struct AnythingVisitor;
-                impl ::serde::de::Visitor for AnythingVisitor {
-                    type Value = Anything;
-
-                    fn visit_bool<E>(&mut self, _: bool) -> Result<Anything, E> { Ok(Anything) }
-                    fn visit_i64<E>(&mut self, _: i64) -> Result<Anything, E> { Ok(Anything) }
-                    fn visit_u64<E>(&mut self, _: u64) -> Result<Anything, E> { Ok(Anything) }
-                    fn visit_f64<E>(&mut self, _: f64) -> Result<Anything, E> { Ok(Anything) }
-                    fn visit_str<E>(&mut self, _: &str) -> Result<Anything, E> { Ok(Anything) }
-                    fn visit_string<E>(&mut self, _: String) -> Result<Anything, E> { Ok(Anything) }
-                    fn visit_unit<E>(&mut self) -> Result<Anything, E> { Ok(Anything) }
-                    fn visit_none<E>(&mut self) -> Result<Anything, E> { Ok(Anything) }
-
-                    fn visit_some<D: ::serde::de::Deserializer>(&mut self, d: &mut D) -> Result<Anything, D::Error> {
-                        serde::de::Deserialize::deserialize(d)
-                    }
-
-                    fn visit_seq<V: ::serde::de::SeqVisitor>(&mut self, v: V) -> Result<Anything, V::Error> {
-                        let _: Vec<Anything> = try!(::serde::de::impls::VecVisitor::new().visit_seq(v));
-                        Ok(Anything)
-                    }
-
-                    fn visit_map<V: ::serde::de::MapVisitor>(&mut self, mut v: V) -> Result<Anything, V::Error> {
-                        while let Some((Anything, Anything)) = try!(v.visit()) { }
-                        try!(v.end());
-                        Ok(Anything)
-                    }
-                }
-
-                impl ::serde::Deserialize for Anything {
-                    fn deserialize<D>(deserializer: &mut D) -> Result<Anything, D::Error>
-                        where D: ::serde::de::Deserializer
-                    {
-                        deserializer.visit(AnythingVisitor)
-                    }
-                }
+                __rust_jsonrpc_internal__define_anything_type!();
 
                 #[allow(non_camel_case_types)]
                 enum Enum { Unknown__Field, $($fe),* }
@@ -180,8 +187,11 @@ macro_rules! serde_struct_enum_impl {
                 where D: serde::de::Deserializer
             {
                 // start type defs
+                __rust_jsonrpc_internal__define_anything_type!();
+
                 $(#[allow(non_camel_case_types)] enum $varname { $($fe),* })*
-                enum Enum { $($varname($varname)),* }
+                #[allow(non_camel_case_types)]
+                enum Enum { Unknown__Field, $($varname($varname)),* }
 
                 struct EnumVisitor;
                 impl ::serde::de::Visitor for EnumVisitor {
@@ -194,7 +204,7 @@ macro_rules! serde_struct_enum_impl {
                         if value == stringify!($fe) $(|| value == $alt)* {
                             Ok(Enum::$varname($varname::$fe))
                         } else)*)* {
-                            Err(::serde::de::Error::unknown_field(value))
+                            Ok(Enum::Unknown__Field)
                         }
                     }
                 }
@@ -231,6 +241,7 @@ macro_rules! serde_struct_enum_impl {
 
                         loop {
                             match try!(v.visit_key()) {
+                                Some(Enum::Unknown__Field) => { let _: Anything = try!(v.visit_value()); }
                                 $($(Some(Enum::$varname($varname::$fe)) => {
                                     $fe = Some(try!(v.visit_value())); })*)*
                                 None => { break; }
