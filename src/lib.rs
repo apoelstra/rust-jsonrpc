@@ -17,75 +17,72 @@
 //! Rust support for the JSON-RPC 2.0 protocol.
 //!
 
-#![crate_type = "lib"]
-#![crate_type = "rlib"]
-#![crate_type = "dylib"]
-#![crate_name = "jsonrpc"]
-
 // Coding conventions
-#![deny(non_upper_case_globals)]
-#![deny(non_camel_case_types)]
-#![deny(non_snake_case)]
-#![deny(unused_mut)]
+#![deny(non_upper_case_globals, non_camel_case_types, non_snake_case,
+        unused_mut)]
 #![warn(missing_docs)]
 
-extern crate hyper;
 extern crate serde;
-extern crate strason;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_json;
 
-#[macro_use] mod macros;
+extern crate reqwest;
+
 pub mod client;
 pub mod error;
 
-use strason::Json;
+use serde_json::Value;
 // Re-export error type
 pub use error::Error;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 /// A JSONRPC request object
 pub struct Request {
     /// The name of the RPC call
     pub method: String,
     /// Parameters to the RPC call
-    pub params: Vec<Json>,
+    pub params: Vec<Value>,
     /// Identifier for this Request, which should appear in the response
-    pub id: Json,
+    pub id: Value,
     /// jsonrpc field, MUST be "2.0"
     pub jsonrpc: Option<String>
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 /// A JSONRPC response object
 pub struct Response {
     /// A result if there is one, or null
-    pub result: Option<Json>,
+    pub result: Option<Value>,
     /// An error if there is one, or null
     pub error: Option<error::RpcError>,
     /// Identifier for this Request, which should match that of the request
-    pub id: Json,
+    pub id: Value,
     /// jsonrpc field, MUST be "2.0"
     pub jsonrpc: Option<String>
 }
 
 impl Response {
     /// Extract the result from a response
-    pub fn result<T: serde::Deserialize>(&self) -> Result<T, Error> {
+    pub fn result<T: serde::de::DeserializeOwned>(&self) -> Result<T, Error> {
         if let Some(ref e) = self.error {
             return Err(Error::Rpc(e.clone()));
         }
+
         match self.result {
-            Some(ref res) => res.clone().into_deserialize().map_err(Error::Json),
+            Some(ref res) => serde_json::from_value(res.clone()).map_err(Error::Json),
             None => Err(Error::NoErrorOrResult)
         }
     }
 
     /// Extract the result from a response, consuming the response
-    pub fn into_result<T: serde::Deserialize>(self) -> Result<T, Error> {
+    pub fn into_result<T: serde::de::DeserializeOwned>(self) -> Result<T, Error> {
         if let Some(e) = self.error {
             return Err(Error::Rpc(e));
         }
+
         match self.result {
-            Some(res) => res.into_deserialize().map_err(Error::Json),
+            Some(res) => serde_json::from_value(res).map_err(Error::Json),
             None => Err(Error::NoErrorOrResult)
         }
     }
@@ -103,33 +100,17 @@ impl Response {
     pub fn is_none(&self) -> bool { self.result.is_none() }
 }
 
-serde_struct_impl!(
-    Request,
-    method,
-    params,
-    id,
-    jsonrpc
-);
-
-serde_struct_impl!(
-    Response,
-    result,
-    error,
-    id,
-    jsonrpc
-);
-
 #[cfg(test)]
 mod tests {
     use super::{Request, Response};
     use super::error::RpcError;
-    use strason::{self, Json};
+    use serde_json::{self, Value};
 
     #[test]
     fn request_serialize_round_trip() {
         let original = Request {
             method: "test".to_owned(),
-            params: vec![From::from(()),
+            params: vec![serde_json::Value::Null,
                          From::from(false),
                          From::from(true),
                          From::from("test2")],
@@ -137,8 +118,8 @@ mod tests {
             jsonrpc: Some(String::from("2.0"))
         };
 
-        let ser = strason::from_serialize(&original).unwrap();
-        let des = ser.into_deserialize().unwrap();
+        let ser = serde_json::to_value(&original).unwrap();
+        let des = serde_json::from_value(ser).unwrap();
 
         assert_eq!(original, des);
     }
@@ -152,17 +133,17 @@ mod tests {
         };
 
         let original = Response {
-            result: Some(From::<Vec<Json>>::from(vec![From::from(()),
-                                                 From::from(false),
-                                                 From::from(true),
-                                                 From::from("test2")])),
+            result: Some(From::<Vec<Value>>::from(vec![serde_json::Value::Null,
+                                                       From::from(false),
+                                                       From::from(true),
+                                                       From::from("test2")])),
             error: Some(original_err),
             id: From::from(101),
             jsonrpc: Some(String::from("2.0"))
         };
 
-        let ser = strason::from_serialize(&original).unwrap();
-        let des = ser.into_deserialize().unwrap();
+        let ser = serde_json::to_value(&original).unwrap();
+        let des = serde_json::from_value(ser).unwrap();
 
         assert_eq!(original, des);
     }
@@ -191,9 +172,9 @@ mod tests {
     fn response_extract() {
         let obj = vec!["Mary", "had", "a", "little", "lamb"];
         let response = Response {
-            result: Some(strason::from_serialize(&obj).unwrap()),
+            result: Some(serde_json::to_value(&obj).unwrap()),
             error: None,
-            id: From::from(()),
+            id: serde_json::Value::Null,
             jsonrpc: Some(String::from("2.0"))
         };
         let recovered1: Vec<String> = response.result().unwrap();

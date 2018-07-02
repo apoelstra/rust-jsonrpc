@@ -18,101 +18,85 @@
 //! and parsing responses
 //!
 
-use std::io;
-use std::io::Read;
 use std::sync::{Arc, Mutex};
 
-use hyper::client::Client as HyperClient;
-use hyper::header::{Headers, Authorization, Basic};
-use hyper;
-use strason::{self, Json};
+use serde_json::{self, Value};
 
-use super::{Request, Response};
+use reqwest::{self, Body, Method, Url};
+use reqwest::header::{Authorization, Basic};
+
 use error::Error;
+use {Request, Response};
 
 /// A handle to a remote JSONRPC server
 pub struct Client {
-    url: String,
+    url: Url,
     user: Option<String>,
     pass: Option<String>,
-    client: HyperClient,
+    client: reqwest::Client,
     nonce: Arc<Mutex<u64>>
 }
 
 impl Client {
     /// Creates a new client
-    pub fn new(url: String, user: Option<String>, pass: Option<String>) -> Client {
+    pub fn new<U, P>(url: &str, user: U, pass: P) -> Result<Client, Error>
+        where U: Into<Option<String>>,
+              P: Into<Option<String>>,
+    {
+        let (user, pass) = (user.into(), pass.into());
+
         // Check that if we have a password, we have a username; other way around is ok
         debug_assert!(pass.is_none() || user.is_some());
 
-        Client {
-            url: url,
-            user: user,
-            pass: pass,
-            client: HyperClient::new(),
+        Ok(Client {
+            url: Url::parse(url)?,
+            user,
+            pass,
+            client: reqwest::Client::new(),
             nonce: Arc::new(Mutex::new(0))
-        }
+        })
     }
 
     /// Sends a request to a client
-    pub fn send_request(&self, request: &Request) -> Result<Response, Error> {
-        // Build request
-        let request_json = try!(strason::from_serialize(request));
-        let request_raw = request_json.to_bytes();
+    pub fn execute(&self, request: Request) -> Result<Response, Error> {
+        let mut reqwest_request = reqwest::Request::new(Method::Post, self.url.clone());
 
         // Setup connection
-        let mut headers = Headers::new();
         if let Some(ref user) = self.user {
+            let headers = reqwest_request.headers_mut();
             headers.set(Authorization(Basic {
                 username: user.clone(),
                 password: self.pass.clone()
             }));
         }
 
-        // Send request
-        let retry_headers = headers.clone();
-        let hyper_request = self.client.post(&self.url).headers(headers).body(&request_raw[..]);
-        let mut stream = match hyper_request.send() {
-            Ok(s) => s,
-            // Hyper maintains a pool of TCP connections to its various clients,
-            // and when one drops it cannot tell until it tries sending. In this
-            // case the appropriate thing is to re-send, which will cause hyper
-            // to open a new connection. Jonathan Reem explained this to me on
-            // IRC, citing vague technical reasons that the library itself cannot
-            // do the retry transparently.
-            Err(hyper::error::Error::Io(e)) => {
-                if e.kind() == io::ErrorKind::ConnectionAborted {
-                    try!(self.client.post(&self.url).headers(retry_headers)
-                                                    .body(&request_raw[..])
-                                                    .send().map_err(Error::Hyper))
-                } else {
-                    return Err(Error::Hyper(hyper::error::Error::Io(e)));
-                }
-            }
-            Err(e) => { return Err(Error::Hyper(e)); }
-        };
+        {
+            let body = reqwest_request.body_mut();
+            *body = Some(Body::from(serde_json::to_vec(&request)?));
+        }
 
-        // nb we ignore stream.status since we expect the body
-        // to contain information about any error
-        let response_json = try!(Json::from_reader(&mut stream));
-        stream.bytes().count();  // Drain the stream so it can be reused
-        let response: Response = try!(response_json.into_deserialize());
-        if response.jsonrpc != None &&
-           response.jsonrpc != Some(From::from("2.0")) {
-            return Err(Error::VersionMismatch);
+        let response: Response = self.client.execute(reqwest_request)?.json()?;
+
+        if let Some(ref jsonrpc) = response.jsonrpc {
+            if &**jsonrpc != "2.0" {
+                return Err(Error::VersionMismatch);
+            }
         }
         if response.id != request.id {
             return Err(Error::NonceMismatch);
         }
+
         Ok(response)
     }
 
     /// Builds a request
-    pub fn build_request(&self, name: String, params: Vec<Json>) -> Request {
+    pub fn build_request<N>(&self, name: N, params: Vec<Value>) -> Request
+        where N: ToString,
+    {
         let mut nonce = self.nonce.lock().unwrap();
         *nonce += 1;
         Request {
-            method: name,
+            method: name.to_string(),
             params: params,
             id: From::from(*nonce),
             jsonrpc: Some(String::from("2.0"))
@@ -131,11 +115,11 @@ mod tests {
 
     #[test]
     fn sanity() {
-        let client = Client::new("localhost".to_owned(), None, None);
+        let client = Client::new("http://localhost", None, None).unwrap();
         assert_eq!(client.last_nonce(), 0);
-        let req1 = client.build_request("test".to_owned(), vec![]);
+        let req1 = client.build_request("test", vec![]);
         assert_eq!(client.last_nonce(), 1);
-        let req2 = client.build_request("test".to_owned(), vec![]);
+        let req2 = client.build_request("test", vec![]);
         assert_eq!(client.last_nonce(), 2);
         assert!(req1 != req2);
     }
