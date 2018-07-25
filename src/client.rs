@@ -25,7 +25,7 @@ use std::sync::{Arc, Mutex};
 use hyper::client::Client as HyperClient;
 use hyper::header::{Headers, Authorization, Basic};
 use hyper;
-use strason::{self, Json};
+use strason::Json;
 
 use super::{Request, Response};
 use error::Error;
@@ -57,8 +57,7 @@ impl Client {
     /// Sends a request to a client
     pub fn send_request(&self, request: &Request) -> Result<Response, Error> {
         // Build request
-        let request_json = try!(strason::from_serialize(request));
-        let request_raw = request_json.to_bytes();
+        let request_raw = Json::from_serialize(request)?.to_bytes();
 
         // Setup connection
         let mut headers = Headers::new();
@@ -94,9 +93,8 @@ impl Client {
 
         // nb we ignore stream.status since we expect the body
         // to contain information about any error
-        let response_json = try!(Json::from_reader(&mut stream));
+        let response: Response = Json::from_reader(&mut stream)?.into_deserialize()?;
         stream.bytes().count();  // Drain the stream so it can be reused
-        let response: Response = try!(response_json.into_deserialize());
         if response.jsonrpc != None &&
            response.jsonrpc != Some(From::from("2.0")) {
             return Err(Error::VersionMismatch);
