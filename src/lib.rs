@@ -30,10 +30,12 @@
 #![warn(missing_docs)]
 
 extern crate hyper;
+
 extern crate serde;
+#[macro_use]
+extern crate serde_derive;
 extern crate strason;
 
-#[macro_use] mod macros;
 pub mod client;
 pub mod error;
 
@@ -41,7 +43,7 @@ use strason::Json;
 // Re-export error type
 pub use error::Error;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 /// A JSONRPC request object
 pub struct Request {
     /// The name of the RPC call
@@ -54,7 +56,7 @@ pub struct Request {
     pub jsonrpc: Option<String>
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 /// A JSONRPC response object
 pub struct Response {
     /// A result if there is one, or null
@@ -69,7 +71,7 @@ pub struct Response {
 
 impl Response {
     /// Extract the result from a response
-    pub fn result<T: serde::Deserialize>(&self) -> Result<T, Error> {
+    pub fn result<T: serde::de::DeserializeOwned>(&self) -> Result<T, Error> {
         if let Some(ref e) = self.error {
             return Err(Error::Rpc(e.clone()));
         }
@@ -80,12 +82,13 @@ impl Response {
     }
 
     /// Extract the result from a response, consuming the response
-    pub fn into_result<T: serde::Deserialize>(self) -> Result<T, Error> {
+    pub fn into_result<T: serde::de::DeserializeOwned>(self) -> Result<T, Error> {
         if let Some(e) = self.error {
             return Err(Error::Rpc(e));
         }
+
         match self.result {
-            Some(res) => res.into_deserialize().map_err(Error::Json),
+            Some(ref res) => res.clone().into_deserialize().map_err(Error::Json),
             None => Err(Error::NoErrorOrResult)
         }
     }
@@ -103,27 +106,11 @@ impl Response {
     pub fn is_none(&self) -> bool { self.result.is_none() }
 }
 
-serde_struct_impl!(
-    Request,
-    method,
-    params,
-    id,
-    jsonrpc
-);
-
-serde_struct_impl!(
-    Response,
-    result,
-    error,
-    id,
-    jsonrpc
-);
-
 #[cfg(test)]
 mod tests {
     use super::{Request, Response};
     use super::error::RpcError;
-    use strason::{self, Json};
+    use strason::Json;
 
     #[test]
     fn request_serialize_round_trip() {
@@ -137,7 +124,7 @@ mod tests {
             jsonrpc: Some(String::from("2.0"))
         };
 
-        let ser = strason::from_serialize(&original).unwrap();
+        let ser = Json::from_serialize(&original).unwrap();
         let des = ser.into_deserialize().unwrap();
 
         assert_eq!(original, des);
@@ -161,7 +148,7 @@ mod tests {
             jsonrpc: Some(String::from("2.0"))
         };
 
-        let ser = strason::from_serialize(&original).unwrap();
+        let ser = Json::from_serialize(&original).unwrap();
         let des = ser.into_deserialize().unwrap();
 
         assert_eq!(original, des);
@@ -191,7 +178,7 @@ mod tests {
     fn response_extract() {
         let obj = vec!["Mary", "had", "a", "little", "lamb"];
         let response = Response {
-            result: Some(strason::from_serialize(&obj).unwrap()),
+            result: Some(Json::from_serialize(&obj).unwrap()),
             error: None,
             id: From::from(()),
             jsonrpc: Some(String::from("2.0"))

@@ -20,7 +20,6 @@
 use std::{error, fmt};
 
 use hyper;
-use serde;
 use strason::{self, Json};
 
 use Response;
@@ -123,7 +122,7 @@ pub enum StandardError {
     InternalError
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 /// A JSONRPC error object
 pub struct RpcError {
     /// The integer identifier of the error
@@ -172,13 +171,6 @@ pub fn result_to_response(result: Result<Json, RpcError>, id: Json) -> Response 
         Err(err) => Response { result: None, error: Some(err), id: id, jsonrpc: Some(String::from("2.0")) }
     }
 }
-
-serde_struct_impl!(
-    RpcError,
-    code,
-    message,
-    data
-);
 
 #[cfg(test)]
 mod tests {
