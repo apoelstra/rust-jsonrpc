@@ -20,7 +20,7 @@
 use std::{error, fmt};
 
 use hyper;
-use strason::{self, Json};
+use serde_json;
 
 use Response;
 
@@ -28,7 +28,7 @@ use Response;
 #[derive(Debug)]
 pub enum Error {
     /// Json error
-    Json(strason::Error),
+    Json(serde_json::Error),
     /// Client error
     Hyper(hyper::error::Error),
     /// Error response
@@ -41,8 +41,8 @@ pub enum Error {
     VersionMismatch
 }
 
-impl From<strason::Error> for Error {
-    fn from(e: strason::Error) -> Error { Error::Json(e) }
+impl From<serde_json::Error> for Error {
+    fn from(e: serde_json::Error) -> Error { Error::Json(e) }
 }
 
 impl From<hyper::error::Error> for Error {
@@ -130,11 +130,11 @@ pub struct RpcError {
     /// A string describing the error
     pub message: String,
     /// Additional data specific to the error
-    pub data: Option<Json>
+    pub data: Option<serde_json::Value>
 }
 
 /// Create a standard error responses
-pub fn standard_error(code: StandardError, data: Option<Json>) -> RpcError {
+pub fn standard_error(code: StandardError, data: Option<serde_json::Value>) -> RpcError {
     match code {
         StandardError::ParseError => RpcError {
             code: -32700,
@@ -165,7 +165,7 @@ pub fn standard_error(code: StandardError, data: Option<Json>) -> RpcError {
 }
 
 /// Converts a Rust `Result` to a JSONRPC response object
-pub fn result_to_response(result: Result<Json, RpcError>, id: Json) -> Response {
+pub fn result_to_response(result: Result<serde_json::Value, RpcError>, id: serde_json::Value) -> Response {
     match result {
         Ok(data) => Response { result: Some(data), error: None, id: id, jsonrpc: Some(String::from("2.0")) },
         Err(err) => Response { result: None, error: Some(err), id: id, jsonrpc: Some(String::from("2.0")) }
@@ -176,13 +176,14 @@ pub fn result_to_response(result: Result<Json, RpcError>, id: Json) -> Response 
 mod tests {
     use super::StandardError::{ParseError, InvalidRequest, MethodNotFound, InvalidParams, InternalError};
     use super::{standard_error, result_to_response};
+    use serde_json;
 
     #[test]
     fn test_parse_error() {
         let resp = result_to_response(Err(standard_error(ParseError, None)), From::from(1));
         assert!(resp.result.is_none());
         assert!(resp.error.is_some());
-        assert_eq!(resp.id, From::from(1));
+        assert_eq!(resp.id, serde_json::Value::from(1));
         assert_eq!(resp.error.unwrap().code, -32700);
     }
 
@@ -191,7 +192,7 @@ mod tests {
         let resp = result_to_response(Err(standard_error(InvalidRequest, None)), From::from(1));
         assert!(resp.result.is_none());
         assert!(resp.error.is_some());
-        assert_eq!(resp.id, From::from(1));
+        assert_eq!(resp.id, serde_json::Value::from(1));
         assert_eq!(resp.error.unwrap().code, -32600);
     }
 
@@ -200,7 +201,7 @@ mod tests {
         let resp = result_to_response(Err(standard_error(MethodNotFound, None)), From::from(1));
         assert!(resp.result.is_none());
         assert!(resp.error.is_some());
-        assert_eq!(resp.id, From::from(1));
+        assert_eq!(resp.id, serde_json::Value::from(1));
         assert_eq!(resp.error.unwrap().code, -32601);
     }
 
@@ -209,7 +210,7 @@ mod tests {
         let resp = result_to_response(Err(standard_error(InvalidParams, None)), From::from("123"));
         assert!(resp.result.is_none());
         assert!(resp.error.is_some());
-        assert_eq!(resp.id, From::from("123"));
+        assert_eq!(resp.id, serde_json::Value::from("123"));
         assert_eq!(resp.error.unwrap().code, -32602);
     }
 
@@ -218,7 +219,7 @@ mod tests {
         let resp = result_to_response(Err(standard_error(InternalError, None)), From::from(-1));
         assert!(resp.result.is_none());
         assert!(resp.error.is_some());
-        assert_eq!(resp.id, From::from(-1));
+        assert_eq!(resp.id, serde_json::Value::from(-1));
         assert_eq!(resp.error.unwrap().code, -32603);
     }
 }

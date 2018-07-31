@@ -25,7 +25,7 @@ use std::sync::{Arc, Mutex};
 use hyper::client::Client as HyperClient;
 use hyper::header::{Headers, Authorization, Basic};
 use hyper;
-use strason::Json;
+use serde_json;
 
 use super::{Request, Response};
 use error::Error;
@@ -57,7 +57,7 @@ impl Client {
     /// Sends a request to a client
     pub fn send_request(&self, request: &Request) -> Result<Response, Error> {
         // Build request
-        let request_raw = Json::from_serialize(request)?.to_bytes();
+        let request_raw = serde_json::to_vec(request)?;
 
         // Setup connection
         let mut headers = Headers::new();
@@ -93,7 +93,7 @@ impl Client {
 
         // nb we ignore stream.status since we expect the body
         // to contain information about any error
-        let response: Response = Json::from_reader(&mut stream)?.into_deserialize()?;
+        let response: Response = serde_json::from_reader(&mut stream)?;
         stream.bytes().count();  // Drain the stream so it can be reused
         if response.jsonrpc != None &&
            response.jsonrpc != Some(From::from("2.0")) {
@@ -106,7 +106,7 @@ impl Client {
     }
 
     /// Builds a request
-    pub fn build_request(&self, name: String, params: Vec<Json>) -> Request {
+    pub fn build_request(&self, name: String, params: Vec<serde_json::Value>) -> Request {
         let mut nonce = self.nonce.lock().unwrap();
         *nonce += 1;
         Request {

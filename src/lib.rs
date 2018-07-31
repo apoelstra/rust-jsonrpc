@@ -34,12 +34,11 @@ extern crate hyper;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate strason;
+extern crate serde_json;
 
 pub mod client;
 pub mod error;
 
-use strason::Json;
 // Re-export error type
 pub use error::Error;
 
@@ -49,9 +48,9 @@ pub struct Request {
     /// The name of the RPC call
     pub method: String,
     /// Parameters to the RPC call
-    pub params: Vec<Json>,
+    pub params: Vec<serde_json::Value>,
     /// Identifier for this Request, which should appear in the response
-    pub id: Json,
+    pub id: serde_json::Value,
     /// jsonrpc field, MUST be "2.0"
     pub jsonrpc: Option<String>
 }
@@ -60,11 +59,11 @@ pub struct Request {
 /// A JSONRPC response object
 pub struct Response {
     /// A result if there is one, or null
-    pub result: Option<Json>,
+    pub result: Option<serde_json::Value>,
     /// An error if there is one, or null
     pub error: Option<error::RpcError>,
     /// Identifier for this Request, which should match that of the request
-    pub id: Json,
+    pub id: serde_json::Value,
     /// jsonrpc field, MUST be "2.0"
     pub jsonrpc: Option<String>
 }
@@ -76,7 +75,7 @@ impl Response {
             return Err(Error::Rpc(e.clone()));
         }
         match self.result {
-            Some(ref res) => res.clone().into_deserialize().map_err(Error::Json),
+            Some(ref res) => serde_json::from_value(res.clone()).map_err(Error::Json),
             None => Err(Error::NoErrorOrResult)
         }
     }
@@ -88,7 +87,7 @@ impl Response {
         }
 
         match self.result {
-            Some(ref res) => res.clone().into_deserialize().map_err(Error::Json),
+            Some(ref res) => serde_json::from_value(res.clone()).map_err(Error::Json),
             None => Err(Error::NoErrorOrResult)
         }
     }
@@ -110,13 +109,13 @@ impl Response {
 mod tests {
     use super::{Request, Response};
     use super::error::RpcError;
-    use strason::Json;
+    use serde_json;
 
     #[test]
     fn request_serialize_round_trip() {
         let original = Request {
             method: "test".to_owned(),
-            params: vec![From::from(()),
+            params: vec![serde_json::Value::Null,
                          From::from(false),
                          From::from(true),
                          From::from("test2")],
@@ -124,8 +123,8 @@ mod tests {
             jsonrpc: Some(String::from("2.0"))
         };
 
-        let ser = Json::from_serialize(&original).unwrap();
-        let des = ser.into_deserialize().unwrap();
+        let ser = serde_json::to_vec(&original).unwrap();
+        let des = serde_json::from_slice(&ser).unwrap();
 
         assert_eq!(original, des);
     }
@@ -139,17 +138,19 @@ mod tests {
         };
 
         let original = Response {
-            result: Some(From::<Vec<Json>>::from(vec![From::from(()),
-                                                 From::from(false),
-                                                 From::from(true),
-                                                 From::from("test2")])),
+            result: Some(From::<Vec<serde_json::Value>>::from(vec![
+                serde_json::Value::Null,
+                From::from(false),
+                From::from(true),
+                From::from("test2")
+            ])),
             error: Some(original_err),
             id: From::from(101),
             jsonrpc: Some(String::from("2.0"))
         };
 
-        let ser = Json::from_serialize(&original).unwrap();
-        let des = ser.into_deserialize().unwrap();
+        let ser = serde_json::to_vec(&original).unwrap();
+        let des = serde_json::from_slice(&ser).unwrap();
 
         assert_eq!(original, des);
     }
@@ -178,9 +179,9 @@ mod tests {
     fn response_extract() {
         let obj = vec!["Mary", "had", "a", "little", "lamb"];
         let response = Response {
-            result: Some(Json::from_serialize(&obj).unwrap()),
+            result: Some(serde_json::to_value(&obj).unwrap()),
             error: None,
-            id: From::from(()),
+            id: serde_json::Value::Null,
             jsonrpc: Some(String::from("2.0"))
         };
         let recovered1: Vec<String> = response.result().unwrap();
