@@ -1,6 +1,6 @@
 [package]
 name = "jsonrpc"
-version = "0.9.0"
+version = "0.10.0"
 authors = ["Andrew Poelstra <apoelstra@wpsoftware.net>"]
 license = "CC0-1.0"
 homepage = "https://github.com/apoelstra/rust-jsonrpc/"
