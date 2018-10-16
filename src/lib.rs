@@ -34,7 +34,7 @@ extern crate hyper;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_json;
+pub extern crate serde_json;
 
 pub mod client;
 pub mod error;
