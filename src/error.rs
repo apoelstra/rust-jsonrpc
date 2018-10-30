@@ -33,8 +33,6 @@ pub enum Error {
     Hyper(hyper::error::Error),
     /// Error response
     Rpc(RpcError),
-    /// Response has neither error nor result
-    NoErrorOrResult,
     /// Response to a request did not have the expected nonce
     NonceMismatch,
     /// Response to a request had a jsonrpc field other than "2.0"
@@ -76,7 +74,6 @@ impl error::Error for Error {
             Error::Json(_) => "JSON decode error",
             Error::Hyper(_) => "Hyper error",
             Error::Rpc(_) => "RPC error response",
-            Error::NoErrorOrResult => "Malformed RPC response",
             Error::NonceMismatch => "Nonce of response did not match nonce of request",
             Error::VersionMismatch => "`jsonrpc` field set to non-\"2.0\"",
         }
