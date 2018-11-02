@@ -31,6 +31,7 @@ use super::{Request, Response};
 use error::Error;
 
 /// A handle to a remote JSONRPC server
+#[derive(Clone)]
 pub struct Client {
     url: String,
     user: Option<String>,
