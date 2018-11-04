@@ -83,14 +83,13 @@ impl Client {
                 if e.kind() == io::ErrorKind::BrokenPipe
                     || e.kind() == io::ErrorKind::ConnectionAborted
                 {
-                    try!(
-                        self.client
-                            .post(&self.url)
-                            .headers(retry_headers)
-                            .body(&request_raw[..])
-                            .send()
-                            .map_err(Error::Hyper)
-                    )
+                    try!(self
+                        .client
+                        .post(&self.url)
+                        .headers(retry_headers)
+                        .body(&request_raw[..])
+                        .send()
+                        .map_err(Error::Hyper))
                 } else {
                     return Err(Error::Hyper(hyper::error::Error::Io(e)));
                 }
@@ -114,14 +113,14 @@ impl Client {
     }
 
     /// Builds a request
-    pub fn build_request(&self, name: String, params: Vec<serde_json::Value>) -> Request {
+    pub fn build_request<'a>(&self, name: &'a str, params: &'a [serde_json::Value]) -> Request<'a> {
         let mut nonce = self.nonce.lock().unwrap();
         *nonce += 1;
         Request {
             method: name,
             params: params,
             id: From::from(*nonce),
-            jsonrpc: Some(String::from("2.0")),
+            jsonrpc: Some("2.0"),
         }
     }
 
@@ -139,9 +138,9 @@ mod tests {
     fn sanity() {
         let client = Client::new("localhost".to_owned(), None, None);
         assert_eq!(client.last_nonce(), 0);
-        let req1 = client.build_request("test".to_owned(), vec![]);
+        let req1 = client.build_request("test", &[]);
         assert_eq!(client.last_nonce(), 1);
-        let req2 = client.build_request("test".to_owned(), vec![]);
+        let req2 = client.build_request("test", &[]);
         assert_eq!(client.last_nonce(), 2);
         assert!(req1 != req2);
     }
