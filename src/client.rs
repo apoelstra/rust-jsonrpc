@@ -25,6 +25,7 @@ use std::sync::{Arc, Mutex};
 use hyper;
 use hyper::client::Client as HyperClient;
 use hyper::header::{Authorization, Basic, Headers};
+use serde;
 use serde_json;
 
 use super::{Request, Response};
@@ -61,8 +62,7 @@ impl Client {
         args: &[serde_json::value::Value],
     ) -> Result<T, Error> {
         let request = self.build_request(rpc_name, args);
-        let response = self
-            .send_request(&request)?;
+        let response = self.send_request(&request)?;
 
         Ok(response.clone().into_result()?)
     }
