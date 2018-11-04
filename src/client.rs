@@ -54,6 +54,19 @@ impl Client {
         }
     }
 
+    /// Make a request and deserialize the response
+    pub fn do_rpc<T: for<'a> serde::de::Deserialize<'a>>(
+        &self,
+        rpc_name: &str,
+        args: &[serde_json::value::Value],
+    ) -> Result<T, Error> {
+        let request = self.build_request(rpc_name, args);
+        let response = self
+            .send_request(&request)?;
+
+        Ok(response.clone().into_result()?)
+    }
+
     /// Sends a request to a client
     pub fn send_request(&self, request: &Request) -> Result<Response, Error> {
         // Build request
