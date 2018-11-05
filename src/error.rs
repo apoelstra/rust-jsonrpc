@@ -19,7 +19,6 @@
 
 use std::{error, fmt};
 
-use hyper;
 use serde_json;
 
 use Response;
@@ -29,8 +28,8 @@ use Response;
 pub enum Error {
     /// Json error
     Json(serde_json::Error),
-    /// Client error
-    Hyper(hyper::error::Error),
+    /// HTTP client error
+    Http(Box<error::Error>),
     /// Error response
     Rpc(RpcError),
     /// Response has neither error nor result
@@ -47,12 +46,6 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-impl From<hyper::error::Error> for Error {
-    fn from(e: hyper::error::Error) -> Error {
-        Error::Hyper(e)
-    }
-}
-
 impl From<RpcError> for Error {
     fn from(e: RpcError) -> Error {
         Error::Rpc(e)
@@ -63,7 +56,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::Json(ref e) => write!(f, "JSON decode error: {}", e),
-            Error::Hyper(ref e) => write!(f, "Hyper error: {}", e),
+            Error::Http(ref e) => write!(f, "HTTP error: {}", e),
             Error::Rpc(ref r) => write!(f, "RPC error response: {:?}", r),
             _ => f.write_str(error::Error::description(self)),
         }
@@ -74,7 +67,7 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
             Error::Json(_) => "JSON decode error",
-            Error::Hyper(_) => "Hyper error",
+            Error::Http(_) => "HTTP error",
             Error::Rpc(_) => "RPC error response",
             Error::NoErrorOrResult => "Malformed RPC response",
             Error::NonceMismatch => "Nonce of response did not match nonce of request",
@@ -85,7 +78,7 @@ impl error::Error for Error {
     fn cause(&self) -> Option<&error::Error> {
         match *self {
             Error::Json(ref e) => Some(e),
-            Error::Hyper(ref e) => Some(e),
+            Error::Http(ref e) => Some(&**e),
             _ => None,
         }
     }

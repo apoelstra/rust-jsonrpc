@@ -28,8 +28,8 @@
 #![deny(unused_mut)]
 #![warn(missing_docs)]
 
-extern crate hyper;
-
+extern crate base64;
+extern crate http;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
