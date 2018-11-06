@@ -21,7 +21,6 @@
 #![crate_type = "rlib"]
 #![crate_type = "dylib"]
 #![crate_name = "jsonrpc"]
-
 // Coding conventions
 #![deny(non_upper_case_globals)]
 #![deny(non_camel_case_types)]
@@ -52,7 +51,7 @@ pub struct Request {
     /// Identifier for this Request, which should appear in the response
     pub id: serde_json::Value,
     /// jsonrpc field, MUST be "2.0"
-    pub jsonrpc: Option<String>
+    pub jsonrpc: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -65,7 +64,7 @@ pub struct Response {
     /// Identifier for this Request, which should match that of the request
     pub id: serde_json::Value,
     /// jsonrpc field, MUST be "2.0"
-    pub jsonrpc: Option<String>
+    pub jsonrpc: Option<String>,
 }
 
 impl Response {
@@ -76,7 +75,7 @@ impl Response {
         }
         match self.result {
             Some(ref res) => serde_json::from_value(res.clone()).map_err(Error::Json),
-            None => Err(Error::NoErrorOrResult)
+            None => Err(Error::NoErrorOrResult),
         }
     }
 
@@ -88,7 +87,7 @@ impl Response {
 
         match self.result {
             Some(ref res) => serde_json::from_value(res.clone()).map_err(Error::Json),
-            None => Err(Error::NoErrorOrResult)
+            None => Err(Error::NoErrorOrResult),
         }
     }
 
@@ -102,25 +101,29 @@ impl Response {
     }
 
     /// Returns whether or not the `result` field is empty
-    pub fn is_none(&self) -> bool { self.result.is_none() }
+    pub fn is_none(&self) -> bool {
+        self.result.is_none()
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Request, Response};
     use super::error::RpcError;
+    use super::{Request, Response};
     use serde_json;
 
     #[test]
     fn request_serialize_round_trip() {
         let original = Request {
             method: "test".to_owned(),
-            params: vec![serde_json::Value::Null,
-                         From::from(false),
-                         From::from(true),
-                         From::from("test2")],
+            params: vec![
+                serde_json::Value::Null,
+                From::from(false),
+                From::from(true),
+                From::from("test2"),
+            ],
             id: From::from("69"),
-            jsonrpc: Some(String::from("2.0"))
+            jsonrpc: Some(String::from("2.0")),
         };
 
         let ser = serde_json::to_vec(&original).unwrap();
@@ -134,7 +137,7 @@ mod tests {
         let original_err = RpcError {
             code: -77,
             message: "test4".to_owned(),
-            data: Some(From::from(true))
+            data: Some(From::from(true)),
         };
 
         let original = Response {
@@ -142,11 +145,11 @@ mod tests {
                 serde_json::Value::Null,
                 From::from(false),
                 From::from(true),
-                From::from("test2")
+                From::from("test2"),
             ])),
             error: Some(original_err),
             id: From::from(101),
-            jsonrpc: Some(String::from("2.0"))
+            jsonrpc: Some(String::from("2.0")),
         };
 
         let ser = serde_json::to_vec(&original).unwrap();
@@ -161,14 +164,14 @@ mod tests {
             result: Some(From::from(true)),
             error: None,
             id: From::from(81),
-            jsonrpc: Some(String::from("2.0"))
+            jsonrpc: Some(String::from("2.0")),
         };
 
         let bill = Response {
             result: None,
             error: None,
             id: From::from(66),
-            jsonrpc: Some(String::from("2.0"))
+            jsonrpc: Some(String::from("2.0")),
         };
 
         assert!(!joanna.is_none());
@@ -182,7 +185,7 @@ mod tests {
             result: Some(serde_json::to_value(&obj).unwrap()),
             error: None,
             id: serde_json::Value::Null,
-            jsonrpc: Some(String::from("2.0"))
+            jsonrpc: Some(String::from("2.0")),
         };
         let recovered1: Vec<String> = response.result().unwrap();
         assert!(response.clone().check_error().is_ok());
@@ -191,4 +194,3 @@ mod tests {
         assert_eq!(obj, recovered2);
     }
 }
-

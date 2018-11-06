@@ -38,19 +38,25 @@ pub enum Error {
     /// Response to a request did not have the expected nonce
     NonceMismatch,
     /// Response to a request had a jsonrpc field other than "2.0"
-    VersionMismatch
+    VersionMismatch,
 }
 
 impl From<serde_json::Error> for Error {
-    fn from(e: serde_json::Error) -> Error { Error::Json(e) }
+    fn from(e: serde_json::Error) -> Error {
+        Error::Json(e)
+    }
 }
 
 impl From<hyper::error::Error> for Error {
-    fn from(e: hyper::error::Error) -> Error { Error::Hyper(e) }
+    fn from(e: hyper::error::Error) -> Error {
+        Error::Hyper(e)
+    }
 }
 
 impl From<RpcError> for Error {
-    fn from(e: RpcError) -> Error { Error::Rpc(e) }
+    fn from(e: RpcError) -> Error {
+        Error::Rpc(e)
+    }
 }
 
 impl fmt::Display for Error {
@@ -59,7 +65,7 @@ impl fmt::Display for Error {
             Error::Json(ref e) => write!(f, "JSON decode error: {}", e),
             Error::Hyper(ref e) => write!(f, "Hyper error: {}", e),
             Error::Rpc(ref r) => write!(f, "RPC error response: {:?}", r),
-            _ => f.write_str(error::Error::description(self))
+            _ => f.write_str(error::Error::description(self)),
         }
     }
 }
@@ -80,7 +86,7 @@ impl error::Error for Error {
         match *self {
             Error::Json(ref e) => Some(e),
             Error::Hyper(ref e) => Some(e),
-            _ => None
+            _ => None,
         }
     }
 }
@@ -90,7 +96,7 @@ impl error::Error for Error {
 ///
 /// # Documentation Copyright
 /// Copyright (C) 2007-2010 by the JSON-RPC Working Group
-/// 
+///
 /// This document and translations of it may be used to implement JSON-RPC, it
 /// may be copied and furnished to others, and derivative works that comment
 /// on or otherwise explain it or assist in its implementation may be prepared,
@@ -98,15 +104,15 @@ impl error::Error for Error {
 /// of any kind, provided that the above copyright notice and this paragraph
 /// are included on all such copies and derivative works. However, this document
 /// itself may not be modified in any way.
-/// 
+///
 /// The limited permissions granted above are perpetual and will not be revoked.
-/// 
+///
 /// This document and the information contained herein is provided "AS IS" and
 /// ALL WARRANTIES, EXPRESS OR IMPLIED are DISCLAIMED, INCLUDING BUT NOT LIMITED
 /// TO ANY WARRANTY THAT THE USE OF THE INFORMATION HEREIN WILL NOT INFRINGE ANY
 /// RIGHTS OR ANY IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A
 /// PARTICULAR PURPOSE.
-/// 
+///
 #[derive(Debug)]
 pub enum StandardError {
     /// Invalid JSON was received by the server.
@@ -119,7 +125,7 @@ pub enum StandardError {
     /// Invalid method parameter(s).
     InvalidParams,
     /// Internal JSON-RPC error.
-    InternalError
+    InternalError,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -130,7 +136,7 @@ pub struct RpcError {
     /// A string describing the error
     pub message: String,
     /// Additional data specific to the error
-    pub data: Option<serde_json::Value>
+    pub data: Option<serde_json::Value>,
 }
 
 /// Create a standard error responses
@@ -139,43 +145,58 @@ pub fn standard_error(code: StandardError, data: Option<serde_json::Value>) -> R
         StandardError::ParseError => RpcError {
             code: -32700,
             message: "Parse error".to_string(),
-            data: data
+            data: data,
         },
         StandardError::InvalidRequest => RpcError {
             code: -32600,
             message: "Invalid Request".to_string(),
-            data: data
+            data: data,
         },
         StandardError::MethodNotFound => RpcError {
             code: -32601,
             message: "Method not found".to_string(),
-            data: data
+            data: data,
         },
         StandardError::InvalidParams => RpcError {
             code: -32602,
             message: "Invalid params".to_string(),
-            data: data
+            data: data,
         },
         StandardError::InternalError => RpcError {
             code: -32603,
             message: "Internal error".to_string(),
-            data: data
+            data: data,
         },
     }
 }
 
 /// Converts a Rust `Result` to a JSONRPC response object
-pub fn result_to_response(result: Result<serde_json::Value, RpcError>, id: serde_json::Value) -> Response {
+pub fn result_to_response(
+    result: Result<serde_json::Value, RpcError>,
+    id: serde_json::Value,
+) -> Response {
     match result {
-        Ok(data) => Response { result: Some(data), error: None, id: id, jsonrpc: Some(String::from("2.0")) },
-        Err(err) => Response { result: None, error: Some(err), id: id, jsonrpc: Some(String::from("2.0")) }
+        Ok(data) => Response {
+            result: Some(data),
+            error: None,
+            id: id,
+            jsonrpc: Some(String::from("2.0")),
+        },
+        Err(err) => Response {
+            result: None,
+            error: Some(err),
+            id: id,
+            jsonrpc: Some(String::from("2.0")),
+        },
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::StandardError::{ParseError, InvalidRequest, MethodNotFound, InvalidParams, InternalError};
-    use super::{standard_error, result_to_response};
+    use super::StandardError::{
+        InternalError, InvalidParams, InvalidRequest, MethodNotFound, ParseError,
+    };
+    use super::{result_to_response, standard_error};
     use serde_json;
 
     #[test]
@@ -223,4 +244,3 @@ mod tests {
         assert_eq!(resp.error.unwrap().code, -32603);
     }
 }
-

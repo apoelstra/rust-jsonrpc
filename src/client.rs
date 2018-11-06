@@ -22,9 +22,9 @@ use std::io;
 use std::io::Read;
 use std::sync::{Arc, Mutex};
 
-use hyper::client::Client as HyperClient;
-use hyper::header::{Headers, Authorization, Basic};
 use hyper;
+use hyper::client::Client as HyperClient;
+use hyper::header::{Authorization, Basic, Headers};
 use serde_json;
 
 use super::{Request, Response};
@@ -36,7 +36,7 @@ pub struct Client {
     user: Option<String>,
     pass: Option<String>,
     client: HyperClient,
-    nonce: Arc<Mutex<u64>>
+    nonce: Arc<Mutex<u64>>,
 }
 
 impl Client {
@@ -50,7 +50,7 @@ impl Client {
             user: user,
             pass: pass,
             client: HyperClient::new(),
-            nonce: Arc::new(Mutex::new(0))
+            nonce: Arc::new(Mutex::new(0)),
         }
     }
 
@@ -64,7 +64,7 @@ impl Client {
         if let Some(ref user) = self.user {
             headers.set(Authorization(Basic {
                 username: user.clone(),
-                password: self.pass.clone()
+                password: self.pass.clone(),
             }));
         }
 
@@ -80,24 +80,31 @@ impl Client {
             // IRC, citing vague technical reasons that the library itself cannot
             // do the retry transparently.
             Err(hyper::error::Error::Io(e)) => {
-                if e.kind() == io::ErrorKind::BrokenPipe ||
-                   e.kind() == io::ErrorKind::ConnectionAborted {
-                    try!(self.client.post(&self.url).headers(retry_headers)
-                                                    .body(&request_raw[..])
-                                                    .send().map_err(Error::Hyper))
+                if e.kind() == io::ErrorKind::BrokenPipe
+                    || e.kind() == io::ErrorKind::ConnectionAborted
+                {
+                    try!(
+                        self.client
+                            .post(&self.url)
+                            .headers(retry_headers)
+                            .body(&request_raw[..])
+                            .send()
+                            .map_err(Error::Hyper)
+                    )
                 } else {
                     return Err(Error::Hyper(hyper::error::Error::Io(e)));
                 }
             }
-            Err(e) => { return Err(Error::Hyper(e)); }
+            Err(e) => {
+                return Err(Error::Hyper(e));
+            }
         };
 
         // nb we ignore stream.status since we expect the body
         // to contain information about any error
         let response: Response = serde_json::from_reader(&mut stream)?;
-        stream.bytes().count();  // Drain the stream so it can be reused
-        if response.jsonrpc != None &&
-           response.jsonrpc != Some(From::from("2.0")) {
+        stream.bytes().count(); // Drain the stream so it can be reused
+        if response.jsonrpc != None && response.jsonrpc != Some(From::from("2.0")) {
             return Err(Error::VersionMismatch);
         }
         if response.id != request.id {
@@ -114,7 +121,7 @@ impl Client {
             method: name,
             params: params,
             id: From::from(*nonce),
-            jsonrpc: Some(String::from("2.0"))
+            jsonrpc: Some(String::from("2.0")),
         }
     }
 
@@ -139,4 +146,3 @@ mod tests {
         assert!(req1 != req2);
     }
 }
-
