@@ -64,7 +64,7 @@ impl Client {
         let request = self.build_request(rpc_name, args);
         let response = self.send_request(&request)?;
 
-        Ok(response.clone().into_result()?)
+        Ok(response.into_result()?)
     }
 
     /// Sends a request to a client
