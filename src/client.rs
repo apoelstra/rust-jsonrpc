@@ -126,7 +126,11 @@ impl Client {
     }
 
     /// Builds a request
-    pub fn build_request<'a>(&self, name: &'a str, params: &'a [serde_json::Value]) -> Request<'a> {
+    pub fn build_request<'a, 'b>(
+        &self,
+        name: &'a str,
+        params: &'b [serde_json::Value],
+    ) -> Request<'a, 'b> {
         let mut nonce = self.nonce.lock().unwrap();
         *nonce += 1;
         Request {

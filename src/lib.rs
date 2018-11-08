@@ -43,11 +43,11 @@ pub use error::Error;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 /// A JSONRPC request object
-pub struct Request<'a> {
+pub struct Request<'a, 'b> {
     /// The name of the RPC call
     pub method: &'a str,
     /// Parameters to the RPC call
-    pub params: &'a [serde_json::Value],
+    pub params: &'b [serde_json::Value],
     /// Identifier for this Request, which should appear in the response
     pub id: serde_json::Value,
     /// jsonrpc field, MUST be "2.0"
