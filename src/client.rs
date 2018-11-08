@@ -25,6 +25,7 @@ use std::sync::{Arc, Mutex};
 use hyper;
 use hyper::client::Client as HyperClient;
 use hyper::header::{Authorization, Basic, Headers};
+use serde;
 use serde_json;
 
 use super::{Request, Response};
@@ -52,6 +53,18 @@ impl Client {
             client: HyperClient::new(),
             nonce: Arc::new(Mutex::new(0)),
         }
+    }
+
+    /// Make a request and deserialize the response
+    pub fn do_rpc<T: for<'a> serde::de::Deserialize<'a>>(
+        &self,
+        rpc_name: &str,
+        args: &[serde_json::value::Value],
+    ) -> Result<T, Error> {
+        let request = self.build_request(rpc_name, args);
+        let response = self.send_request(&request)?;
+
+        Ok(response.into_result()?)
     }
 
     /// Sends a request to a client
@@ -83,14 +96,13 @@ impl Client {
                 if e.kind() == io::ErrorKind::BrokenPipe
                     || e.kind() == io::ErrorKind::ConnectionAborted
                 {
-                    try!(
-                        self.client
-                            .post(&self.url)
-                            .headers(retry_headers)
-                            .body(&request_raw[..])
-                            .send()
-                            .map_err(Error::Hyper)
-                    )
+                    try!(self
+                        .client
+                        .post(&self.url)
+                        .headers(retry_headers)
+                        .body(&request_raw[..])
+                        .send()
+                        .map_err(Error::Hyper))
                 } else {
                     return Err(Error::Hyper(hyper::error::Error::Io(e)));
                 }
@@ -114,14 +126,18 @@ impl Client {
     }
 
     /// Builds a request
-    pub fn build_request(&self, name: String, params: Vec<serde_json::Value>) -> Request {
+    pub fn build_request<'a, 'b>(
+        &self,
+        name: &'a str,
+        params: &'b [serde_json::Value],
+    ) -> Request<'a, 'b> {
         let mut nonce = self.nonce.lock().unwrap();
         *nonce += 1;
         Request {
             method: name,
             params: params,
             id: From::from(*nonce),
-            jsonrpc: Some(String::from("2.0")),
+            jsonrpc: Some("2.0"),
         }
     }
 
@@ -139,9 +155,9 @@ mod tests {
     fn sanity() {
         let client = Client::new("localhost".to_owned(), None, None);
         assert_eq!(client.last_nonce(), 0);
-        let req1 = client.build_request("test".to_owned(), vec![]);
+        let req1 = client.build_request("test", &[]);
         assert_eq!(client.last_nonce(), 1);
-        let req2 = client.build_request("test".to_owned(), vec![]);
+        let req2 = client.build_request("test", &[]);
         assert_eq!(client.last_nonce(), 2);
         assert!(req1 != req2);
     }

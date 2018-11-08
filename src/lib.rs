@@ -41,17 +41,17 @@ pub mod error;
 // Re-export error type
 pub use error::Error;
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 /// A JSONRPC request object
-pub struct Request {
+pub struct Request<'a, 'b> {
     /// The name of the RPC call
-    pub method: String,
+    pub method: &'a str,
     /// Parameters to the RPC call
-    pub params: Vec<serde_json::Value>,
+    pub params: &'b [serde_json::Value],
     /// Identifier for this Request, which should appear in the response
     pub id: serde_json::Value,
     /// jsonrpc field, MUST be "2.0"
-    pub jsonrpc: Option<String>,
+    pub jsonrpc: Option<&'a str>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -108,55 +108,9 @@ impl Response {
 
 #[cfg(test)]
 mod tests {
-    use super::error::RpcError;
-    use super::{Request, Response};
+
+    use super::Response;
     use serde_json;
-
-    #[test]
-    fn request_serialize_round_trip() {
-        let original = Request {
-            method: "test".to_owned(),
-            params: vec![
-                serde_json::Value::Null,
-                From::from(false),
-                From::from(true),
-                From::from("test2"),
-            ],
-            id: From::from("69"),
-            jsonrpc: Some(String::from("2.0")),
-        };
-
-        let ser = serde_json::to_vec(&original).unwrap();
-        let des = serde_json::from_slice(&ser).unwrap();
-
-        assert_eq!(original, des);
-    }
-
-    #[test]
-    fn response_serialize_round_trip() {
-        let original_err = RpcError {
-            code: -77,
-            message: "test4".to_owned(),
-            data: Some(From::from(true)),
-        };
-
-        let original = Response {
-            result: Some(From::<Vec<serde_json::Value>>::from(vec![
-                serde_json::Value::Null,
-                From::from(false),
-                From::from(true),
-                From::from("test2"),
-            ])),
-            error: Some(original_err),
-            id: From::from(101),
-            jsonrpc: Some(String::from("2.0")),
-        };
-
-        let ser = serde_json::to_vec(&original).unwrap();
-        let des = serde_json::from_slice(&ser).unwrap();
-
-        assert_eq!(original, des);
-    }
 
     #[test]
     fn response_is_none() {
