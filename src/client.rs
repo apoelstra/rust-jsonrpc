@@ -24,7 +24,7 @@ use std::sync::{Arc, Mutex};
 
 use hyper;
 use hyper::client::Client as HyperClient;
-use hyper::header::{Authorization, Basic, Headers};
+use hyper::header::{Authorization, Basic, ContentType, Headers};
 use serde;
 use serde_json;
 
@@ -74,6 +74,7 @@ impl Client {
 
         // Setup connection
         let mut headers = Headers::new();
+        headers.set(ContentType::json());
         if let Some(ref user) = self.user {
             headers.set(Authorization(Basic {
                 username: user.clone(),
