@@ -73,10 +73,9 @@ impl Response {
         if let Some(ref e) = self.error {
             return Err(Error::Rpc(e.clone()));
         }
-        match self.result {
-            Some(ref res) => serde_json::from_value(res.clone()).map_err(Error::Json),
-            None => Err(Error::NoErrorOrResult),
-        }
+
+        serde_json::from_value(self.result.clone().unwrap_or(serde_json::Value::Null))
+            .map_err(Error::Json)
     }
 
     /// Extract the result from a response, consuming the response
@@ -85,10 +84,7 @@ impl Response {
             return Err(Error::Rpc(e));
         }
 
-        match self.result {
-            Some(ref res) => serde_json::from_value(res.clone()).map_err(Error::Json),
-            None => Err(Error::NoErrorOrResult),
-        }
+        serde_json::from_value(self.result.unwrap_or(serde_json::Value::Null)).map_err(Error::Json)
     }
 
     /// Return the RPC error, if there was one, but do not check the result
@@ -146,5 +142,20 @@ mod tests {
         let recovered2: Vec<String> = response.into_result().unwrap();
         assert_eq!(obj, recovered1);
         assert_eq!(obj, recovered2);
+    }
+
+    #[test]
+    fn null_result() {
+        let s = r#"{"result":null,"error":null,"id":"test"}"#;
+        let response: Response = serde_json::from_str(&s).unwrap();
+        let recovered1: Result<(), _> = response.result();
+        let recovered2: Result<(), _> = response.clone().into_result();
+        assert!(recovered1.is_ok());
+        assert!(recovered2.is_ok());
+
+        let recovered1: Result<String, _> = response.result();
+        let recovered2: Result<String, _> = response.clone().into_result();
+        assert!(recovered1.is_err());
+        assert!(recovered2.is_err());
     }
 }
