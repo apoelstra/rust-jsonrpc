@@ -37,6 +37,7 @@ pub extern crate serde_json;
 
 pub mod client;
 pub mod error;
+pub mod bitcoind_client;
 
 // Re-export error type
 pub use error::Error;
