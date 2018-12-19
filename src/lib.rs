@@ -35,12 +35,19 @@ extern crate serde;
 extern crate serde_derive;
 pub extern crate serde_json;
 
+#[cfg(feature = "base64-compat")]
+pub extern crate base64;
+
 pub mod client;
 pub mod error;
 mod util;
 
+#[cfg(feature = "simple_http")]
+pub mod simple_http;
+
 // Re-export error type
 pub use error::Error;
+pub use client::{Client, Transport};
 
 #[derive(Debug, Clone, Serialize)]
 /// A JSONRPC request object

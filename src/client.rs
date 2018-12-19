@@ -35,7 +35,7 @@ pub trait Transport {
     /// The Error type for this transport.
     /// Errors will get converted into Box<std::error::Error> so the
     /// type here is not use any further.
-    type Err: std::error::Error;
+    type Err: ::std::error::Error;
 
     /// Make an RPC call over the transport.
     fn call<R>(&self, impl serde::Serialize) -> Result<R, Self::Err>
@@ -43,6 +43,9 @@ pub trait Transport {
 }
 
 /// A JSON-RPC client.
+///
+/// Create a new Client using one of the transport-specific constructors:
+/// - [Client::simple_http] for the built-in bare-minimum HTTP transport
 pub struct Client<T: Transport> {
     transport: T,
     nonce: atomic::AtomicUsize,
@@ -74,7 +77,7 @@ impl<T: Transport + 'static> Client<T> {
 
     /// Sends a request to a client
     pub fn send_request(&self, request: Request) -> Result<Response, Error> {
-        let res: Result<Response, _> = self.transport.call(request);
+        let res: Result<Response, _> = self.transport.call(&request);
         res.map_err(|e| Error::Transport(e.into()))
     }
 
@@ -144,7 +147,7 @@ impl<T: Transport + 'static> Client<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io;
+    use std::{io, sync};
     use serde;
 
     struct DummyTransport;
@@ -161,11 +164,11 @@ mod tests {
     #[test]
     fn sanity() {
         let client = Client::with_transport(DummyTransport);
-        assert_eq!(client.nonce.load(std::sync::atomic::Ordering::Relaxed), 1);
+        assert_eq!(client.nonce.load(sync::atomic::Ordering::Relaxed), 1);
         let req1 = client.build_request("test", &[]);
-        assert_eq!(client.nonce.load(std::sync::atomic::Ordering::Relaxed), 2);
+        assert_eq!(client.nonce.load(sync::atomic::Ordering::Relaxed), 2);
         let req2 = client.build_request("test", &[]);
-        assert_eq!(client.nonce.load(std::sync::atomic::Ordering::Relaxed), 3);
+        assert_eq!(client.nonce.load(sync::atomic::Ordering::Relaxed), 3);
         assert!(req1.id != req2.id);
     }
 }
