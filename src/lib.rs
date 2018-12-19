@@ -35,6 +35,7 @@ extern crate serde;
 extern crate serde_derive;
 pub extern crate serde_json;
 
+pub mod bitcoind_client;
 pub mod client;
 pub mod error;
 mod util;
