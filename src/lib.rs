@@ -159,4 +159,18 @@ mod tests {
         assert!(recovered1.is_err());
         assert!(recovered2.is_err());
     }
+
+    #[test]
+    fn batch_response() {
+        // from the jsonrpc.org spec example
+        let s = r#"[
+            {"jsonrpc": "2.0", "result": 7, "id": "1"},
+            {"jsonrpc": "2.0", "result": 19, "id": "2"},
+            {"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}, "id": null},
+            {"jsonrpc": "2.0", "error": {"code": -32601, "message": "Method not found"}, "id": "5"},
+            {"jsonrpc": "2.0", "result": ["hello", 5], "id": "9"}
+        ]"#;
+        let batch_response: Vec<Response> = serde_json::from_str(&s).unwrap();
+        assert_eq!(batch_response.len(), 5);
+    }
 }
