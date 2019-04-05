@@ -37,6 +37,14 @@ pub enum Error {
     NonceMismatch,
     /// Response to a request had a jsonrpc field other than "2.0"
     VersionMismatch,
+    /// Batches can't be empty
+    EmptyBatch,
+    /// Too many responses returned in batch
+    WrongBatchResponseSize,
+    /// Batch response contained a duplicate ID
+    BatchDuplicateResponseId(serde_json::Value),
+    /// Batch response contained an ID that didn't correspond to any request ID
+    WrongBatchResponseId(serde_json::Value),
 }
 
 impl From<serde_json::Error> for Error {
@@ -63,6 +71,10 @@ impl fmt::Display for Error {
             Error::Json(ref e) => write!(f, "JSON decode error: {}", e),
             Error::Hyper(ref e) => write!(f, "Hyper error: {}", e),
             Error::Rpc(ref r) => write!(f, "RPC error response: {:?}", r),
+            Error::BatchDuplicateResponseId(ref v) => {
+                write!(f, "duplicate RPC batch response ID: {}", v)
+            }
+            Error::WrongBatchResponseId(ref v) => write!(f, "wrong RPC batch response ID: {}", v),
             _ => f.write_str(error::Error::description(self)),
         }
     }
@@ -76,6 +88,12 @@ impl error::Error for Error {
             Error::Rpc(_) => "RPC error response",
             Error::NonceMismatch => "Nonce of response did not match nonce of request",
             Error::VersionMismatch => "`jsonrpc` field set to non-\"2.0\"",
+            Error::EmptyBatch => "batches can't be empty",
+            Error::WrongBatchResponseSize => "too many responses returned in batch",
+            Error::BatchDuplicateResponseId(_) => "batch response contained a duplicate ID",
+            Error::WrongBatchResponseId(_) => {
+                "batch response contained an ID that didn't correspond to any request ID"
+            }
         }
     }
 

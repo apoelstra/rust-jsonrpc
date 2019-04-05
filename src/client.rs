@@ -18,6 +18,7 @@
 //! and parsing responses
 //!
 
+use std::collections::HashMap;
 use std::io;
 use std::io::Read;
 use std::sync::{Arc, Mutex};
@@ -29,6 +30,7 @@ use serde;
 use serde_json;
 
 use super::{Request, Response};
+use util::HashableValue;
 use error::Error;
 
 /// A handle to a remote JSONRPC server
@@ -67,10 +69,14 @@ impl Client {
         Ok(response.into_result()?)
     }
 
-    /// Sends a request to a client
-    pub fn send_request(&self, request: &Request) -> Result<Response, Error> {
+    /// The actual send logic used by both [send_request] and [send_batch].
+    fn send_raw<B, R>(&self, body: &B) -> Result<R, Error>
+    where
+        B: serde::ser::Serialize,
+        R: for<'de> serde::de::Deserialize<'de>,
+    {
         // Build request
-        let request_raw = serde_json::to_vec(request)?;
+        let request_raw = serde_json::to_vec(body)?;
 
         // Setup connection
         let mut headers = Headers::new();
@@ -115,8 +121,14 @@ impl Client {
 
         // nb we ignore stream.status since we expect the body
         // to contain information about any error
-        let response: Response = serde_json::from_reader(&mut stream)?;
+        let response: R = serde_json::from_reader(&mut stream)?;
         stream.bytes().count(); // Drain the stream so it can be reused
+        Ok(response)
+    }
+
+    /// Sends a request to a client
+    pub fn send_request(&self, request: &Request) -> Result<Response, Error> {
+        let response: Response = self.send_raw(&request)?;
         if response.jsonrpc != None && response.jsonrpc != Some(From::from("2.0")) {
             return Err(Error::VersionMismatch);
         }
@@ -124,6 +136,47 @@ impl Client {
             return Err(Error::NonceMismatch);
         }
         Ok(response)
+    }
+
+    /// Sends a batch of requests to the client.  The return vector holds the response
+    /// for the request at the corresponding index.  If no response was provided, it's [None].
+    ///
+    /// Note that the requests need to have valid IDs, so it is advised to create the requests
+    /// with [build_request].
+    pub fn send_batch(&self, requests: &[Request]) -> Result<Vec<Option<Response>>, Error> {
+        if requests.len() < 1 {
+            return Err(Error::EmptyBatch);
+        }
+
+        // If the request body is invalid JSON, the response is a single response object.
+        // We ignore this case since we are confident we are producing valid JSON.
+        let responses: Vec<Response> = self.send_raw(&requests)?;
+        if responses.len() > requests.len() {
+            return Err(Error::WrongBatchResponseSize);
+        }
+
+        // To prevent having to clone responses, we first copy all the IDs so we can reference
+        // them easily. IDs can only be of JSON type String or Number (or Null), so cloning
+        // should be inexpensive and require no allocations as Numbers are more common.
+        let ids: Vec<serde_json::Value> = responses.iter().map(|r| r.id.clone()).collect();
+        // First index responses by ID and catch duplicate IDs.
+        let mut resp_by_id = HashMap::new();
+        for (id, resp) in ids.iter().zip(responses.into_iter()) {
+            if let Some(dup) = resp_by_id.insert(HashableValue(&id), resp) {
+                return Err(Error::BatchDuplicateResponseId(dup.id));
+            }
+        }
+        // Match responses to the requests.
+        let results =
+            requests.into_iter().map(|r| resp_by_id.remove(&HashableValue(&r.id))).collect();
+
+        // Since we're also just producing the first duplicate ID, we can also just produce the
+        // first incorrect ID in case there are multiple.
+        if let Some(incorrect) = resp_by_id.into_iter().nth(0) {
+            return Err(Error::WrongBatchResponseId(incorrect.1.id));
+        }
+
+        Ok(results)
     }
 
     /// Builds a request
