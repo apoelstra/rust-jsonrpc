@@ -43,8 +43,9 @@ pub struct Client {
 }
 
 impl Client {
-    /// Creates a new client
-    pub fn new(url: String, user: Option<String>, pass: Option<String>) -> Client {
+    /// Creates a new client with a specific HyperClient
+    /// Use this to create a socks5 client, etc
+    pub fn with_client(url: String, user: Option<String>, pass: Option<String>, client: HyperClient) -> Client {
         // Check that if we have a password, we have a username; other way around is ok
         debug_assert!(pass.is_none() || user.is_some());
 
@@ -52,9 +53,14 @@ impl Client {
             url: url,
             user: user,
             pass: pass,
-            client: HyperClient::new(),
+            client: client,
             nonce: Arc::new(Mutex::new(0)),
         }
+    }
+
+    /// Creates a new client
+    pub fn new(url: String, user: Option<String>, pass: Option<String>) -> Client {
+        Client::with_client(url, user, pass, HyperClient::new())
     }
 
     /// Make a request and deserialize the response
