@@ -21,7 +21,7 @@
 use std::collections::HashMap;
 use std::io;
 use std::io::Read;
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use hyper;
 use hyper::client::Client as HyperClient;
@@ -39,7 +39,7 @@ pub struct Client {
     user: Option<String>,
     pass: Option<String>,
     client: HyperClient,
-    nonce: Arc<Mutex<u64>>,
+    nonce: AtomicU64,
 }
 
 impl Client {
@@ -53,7 +53,7 @@ impl Client {
             user: user,
             pass: pass,
             client: HyperClient::new(),
-            nonce: Arc::new(Mutex::new(0)),
+            nonce: AtomicU64::new(0),
         }
     }
 
@@ -185,19 +185,18 @@ impl Client {
         name: &'a str,
         params: &'b [serde_json::Value],
     ) -> Request<'a, 'b> {
-        let mut nonce = self.nonce.lock().unwrap();
-        *nonce += 1;
+        let nonce = self.nonce.fetch_add(1, Ordering::SeqCst);
         Request {
             method: name,
             params: params,
-            id: From::from(*nonce),
+            id: From::from(nonce),
             jsonrpc: Some("2.0"),
         }
     }
 
-    /// Accessor for the last-used nonce
-    pub fn last_nonce(&self) -> u64 {
-        *self.nonce.lock().unwrap()
+    /// Accessor for the next nonce
+    pub fn next_nonce(&self) -> u64 {
+        self.nonce.load(Ordering::SeqCst)
     }
 }
 
@@ -208,11 +207,11 @@ mod tests {
     #[test]
     fn sanity() {
         let client = Client::new("localhost".to_owned(), None, None);
-        assert_eq!(client.last_nonce(), 0);
+        assert_eq!(client.next_nonce(), 0);
         let req1 = client.build_request("test", &[]);
-        assert_eq!(client.last_nonce(), 1);
+        assert_eq!(client.next_nonce(), 1);
         let req2 = client.build_request("test", &[]);
-        assert_eq!(client.last_nonce(), 2);
+        assert_eq!(client.next_nonce(), 2);
         assert!(req1 != req2);
     }
 }
