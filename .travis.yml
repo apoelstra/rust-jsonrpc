@@ -3,4 +3,7 @@ rust:
   - stable
   - beta
   - nightly
-  - 1.21.0
+  - 1.29.0
+
+script:
+  - ./contrib/test.sh
