@@ -29,7 +29,7 @@ pub enum Error {
     /// Json error
     Json(serde_json::Error),
     /// HTTP client error
-    Http(Box<error::Error>),
+    Http(Box<dyn error::Error>),
     /// Error response
     Rpc(RpcError),
     /// Response to a request did not have the expected nonce
@@ -68,29 +68,16 @@ impl fmt::Display for Error {
                 write!(f, "duplicate RPC batch response ID: {}", v)
             }
             Error::WrongBatchResponseId(ref v) => write!(f, "wrong RPC batch response ID: {}", v),
-            _ => f.write_str(error::Error::description(self)),
+            Error::NonceMismatch => f.write_str("Nonce of response did not match nonce of request"),
+            Error::VersionMismatch => f.write_str("`jsonrpc` field set to non-\"2.0\""),
+            Error::EmptyBatch => f.write_str("batches can't be empty"),
+            Error::WrongBatchResponseSize => f.write_str("too many responses returned in batch"),
         }
     }
 }
 
 impl error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::Json(_) => "JSON decode error",
-            Error::Http(_) => "HTTP error",
-            Error::Rpc(_) => "RPC error response",
-            Error::NonceMismatch => "Nonce of response did not match nonce of request",
-            Error::VersionMismatch => "`jsonrpc` field set to non-\"2.0\"",
-            Error::EmptyBatch => "batches can't be empty",
-            Error::WrongBatchResponseSize => "too many responses returned in batch",
-            Error::BatchDuplicateResponseId(_) => "batch response contained a duplicate ID",
-            Error::WrongBatchResponseId(_) => {
-                "batch response contained an ID that didn't correspond to any request ID"
-            }
-        }
-    }
-
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             Error::Json(ref e) => Some(e),
             Error::Http(ref e) => Some(&**e),
