@@ -93,7 +93,7 @@ impl HttpRoundTripper for SimpleBitcoindClient {
     type ResponseBody = Cursor<Vec<u8>>;
     type Err = Error;
 
-    fn request(&self, request: Request<&[u8]>) -> Result<Response<Self::ResponseBody>, Self::Err> {
+    fn post(&self, request: Request<&[u8]>) -> Result<Response<Self::ResponseBody>, Self::Err> {
         // Parse request
         let server = match request
             .uri()

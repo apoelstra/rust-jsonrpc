@@ -39,7 +39,7 @@ pub trait HttpRoundTripper {
     type Err: error::Error;
 
     /// Make an HTTP request.  In practice only POST request will be made.
-    fn request(
+    fn post(
         &self,
         http::Request<&[u8]>,
     ) -> Result<http::Response<Self::ResponseBody>, Self::Err>;
@@ -114,7 +114,7 @@ impl<Rt: HttpRoundTripper + 'static> Client<Rt> {
         let http_request = request_builder.body(&request_raw[..]).unwrap();
 
         let http_response =
-            self.roundtripper.request(http_request).map_err(|e| Error::Http(Box::new(e)))?;
+            self.roundtripper.post(http_request).map_err(|e| Error::Http(Box::new(e)))?;
 
         // nb we ignore stream.status since we expect the body
         // to contain information about any error
@@ -206,7 +206,7 @@ mod tests {
         type ResponseBody = io::Empty;
         type Err = io::Error;
 
-        fn request(
+        fn post(
             &self,
             _: http::Request<&[u8]>,
         ) -> Result<http::Response<Self::ResponseBody>, Self::Err> {
