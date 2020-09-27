@@ -21,9 +21,9 @@ struct MyStruct {
 
 fn main() {
     // The two Nones are for user/pass for authentication
-    let mut client = jsonrpc::client::Client::new("example.org".to_owned(), None, None);
-    let request = client.build_request("getmystruct".to_owned(), vec![]);
-    match client.send_request(&request).and_then(|res| res.into_result::<MyStruct>()) {
+    let rtt = jsonrpc::simple_rtt::Tripper::new();
+    let client = jsonrpc::client::Client::new(rtt, "example.org".to_owned(), None, None);
+    match client.do_rpc::<MyStruct>(&request) {
         Ok(mystruct) => // Ok!
         Err(e) => // Not so much.
     }
