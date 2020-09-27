@@ -191,9 +191,10 @@ mod tests {
     #[test]
     fn construct() {
         let rtt = Builder::new()
+            .default_port(1000)
             .timeout(Duration::from_millis(100))
             .build();
-        let client = Client::new(rtt, "localhost:22".to_owned(), None, None);
+        let client = Client::with_rtt(rtt, "localhost:22".to_owned(), None, None);
         drop(client);
     }
 }

@@ -54,9 +54,20 @@ pub struct Client<R: HttpRoundTripper> {
     nonce: Arc<Mutex<u64>>,
 }
 
-impl<Rt: HttpRoundTripper + 'static> Client<Rt> {
+impl<Rt: Default + HttpRoundTripper + 'static> Client<Rt> {
     /// Creates a new client
     pub fn new(
+        url: String,
+        user: Option<String>,
+        pass: Option<String>,
+    ) -> Client<Rt> {
+        Client::with_rtt(Default::default(), url, user, pass)
+    }
+}
+
+impl<Rt: HttpRoundTripper + 'static> Client<Rt> {
+    /// Creates a new client
+    pub fn with_rtt(
         roundtripper: Rt,
         url: String,
         user: Option<String>,
@@ -217,7 +228,7 @@ mod tests {
 
     #[test]
     fn sanity() {
-        let client = Client::new(RT(), "localhost".to_owned(), None, None);
+        let client = Client::with_rtt(RT(), "localhost".to_owned(), None, None);
         assert_eq!(client.last_nonce(), 0);
         let req1 = client.build_request("test", &[]);
         assert_eq!(client.last_nonce(), 1);
