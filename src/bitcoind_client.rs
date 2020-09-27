@@ -1,7 +1,7 @@
 //! This module implements a minimal and non standard conforming HTTP client that works with
 //! the bitcoind RPC server. This client can be used if minimal dependencies are a goal.
 
-use ::client::HttpRoundTripper;
+use ::HttpRoundTripper;
 
 use http::{Request, Response};
 
@@ -12,20 +12,20 @@ use std::time::{Instant, Duration};
 
 /// Simple bitcoind JSON RPC client that implements the necessary subset of HTTP
 #[derive(Copy, Clone, Debug)]
-pub struct SimpleBitcoindClient {
+pub struct Tripper {
     default_port: u16,
     timeout: Duration,
 }
 
-/// Builder for non-standard `SimpleBitcoinClient`s
+/// Builder for simple bitcoind `Tripper`s
 #[derive(Clone, Debug)]
-pub struct SimpleBitcoindClientBuilder {
-    client: SimpleBitcoindClient,
+pub struct Builder {
+    tripper: Tripper,
 }
 
-impl Default for SimpleBitcoindClient {
+impl Default for Tripper {
     fn default() -> Self {
-        SimpleBitcoindClient {
+        Tripper {
             default_port: 8332,
             timeout: Duration::from_secs(15),
         }
@@ -33,42 +33,42 @@ impl Default for SimpleBitcoindClient {
 }
 
 
-impl SimpleBitcoindClientBuilder {
-    /// Construct new `SimpleBitcoinClientBuilder`
-    pub fn new() -> SimpleBitcoindClientBuilder {
-        SimpleBitcoindClientBuilder {
-            client: SimpleBitcoindClient::new(),
+impl Builder {
+    /// Construct new `Builder` with default configuration
+    pub fn new() -> Builder {
+        Builder {
+            tripper: Tripper::new(),
         }
     }
 
-    /// Sets the port that the client will connect to in case none was specified in the URL of the
+    /// Sets the port that the tripper will connect to in case none was specified in the URL of the
     /// request.
     pub fn default_port(mut self, port: u16) -> Self {
-        self.client.default_port = port;
+        self.tripper.default_port = port;
         self
     }
 
     /// Sets the timeout after which requests will abort if they aren't finished
     pub fn timeout(mut self, timeout: Duration) -> Self {
-        self.client.timeout = timeout;
+        self.tripper.timeout = timeout;
         self
     }
 
-    /// Builds the final `SimpleBitcoindClient`
-    pub fn build(self) -> SimpleBitcoindClient {
-        self.client
+    /// Builds the final `Tripper`
+    pub fn build(self) -> Tripper {
+        self.tripper
     }
 }
 
-impl SimpleBitcoindClient {
-    /// Construct a new `SimpleBitcoindClient` with default parameters
+impl Tripper {
+    /// Construct a new `Tripper` with default parameters
     pub fn new() -> Self {
-        SimpleBitcoindClient::default()
+        Tripper::default()
     }
 
-    /// Returns a builder for `SimpleBitcoindClient`
-    pub fn builder() -> SimpleBitcoindClientBuilder {
-        SimpleBitcoindClientBuilder::new()
+    /// Returns a builder for `Tripper`
+    pub fn builder() -> Builder {
+        Builder::new()
     }
 }
 
@@ -89,7 +89,7 @@ fn get_line<R: BufRead>(reader: &mut R, deadline: Instant) -> Result<String, Err
     Err(Error::Timeout)
 }
 
-impl HttpRoundTripper for SimpleBitcoindClient {
+impl HttpRoundTripper for Tripper {
     type ResponseBody = Cursor<Vec<u8>>;
     type Err = Error;
 
@@ -194,7 +194,7 @@ mod tests {
 
     #[test]
     fn construct() {
-        let rtt = SimpleBitcoindClientBuilder::new()
+        let rtt = Builder::new()
             .timeout(Duration::from_millis(100))
             .build();
         let client = Client::new(rtt, "localhost:22".to_owned(), None, None);
