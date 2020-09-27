@@ -116,8 +116,6 @@ impl HttpRoundTripper for Tripper {
 
         // Send HTTP request
         sock.write_all(format!("{} {} HTTP/1.0\r\n", method, uri).as_bytes())?;
-        sock.write_all("Content-Type: application/json\r\n".as_bytes())?;
-        sock.write_all(format!("Content-Length: {}\r\n", request.body().len()).as_bytes())?;
         for (key, value) in request.headers() {
             sock.write_all(key.as_ref())?;
             sock.write_all(": ".as_bytes())?;

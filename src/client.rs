@@ -98,6 +98,7 @@ impl<Rt: HttpRoundTripper + 'static> Client<Rt> {
         // Send request
         let mut request_builder = http::Request::post(&self.url);
         request_builder.header("Content-Type", "application/json-rpc");
+        request_builder.header("Content-Length", request_raw.len());
 
         // Set Authorization header
         if let Some(ref user) = self.user {
