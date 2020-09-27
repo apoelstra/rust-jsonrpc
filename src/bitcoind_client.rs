@@ -43,13 +43,13 @@ impl SimpleBitcoindClientBuilder {
 
     /// Sets the port that the client will connect to in case none was specified in the URL of the
     /// request.
-    pub fn default_port(&mut self, port: u16) -> &mut Self {
+    pub fn default_port(mut self, port: u16) -> Self {
         self.client.default_port = port;
         self
     }
 
     /// Sets the timeout after which requests will abort if they aren't finished
-    pub fn timeout(&mut self, timeout: Duration) -> &mut Self {
+    pub fn timeout(mut self, timeout: Duration) -> Self {
         self.client.timeout = timeout;
         self
     }
@@ -186,3 +186,19 @@ impl From<std::io::Error> for Error {
         Error::SocketError(e)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use Client;
+    use super::*;
+
+    #[test]
+    fn construct() {
+        let rtt = SimpleBitcoindClientBuilder::new()
+            .timeout(Duration::from_millis(100))
+            .build();
+        let client = Client::new(rtt, "localhost:22".to_owned(), None, None);
+        drop(client);
+    }
+}
+
