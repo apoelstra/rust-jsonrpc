@@ -42,6 +42,7 @@ mod util;
 
 // Re-export error type
 pub use error::Error;
+pub use client::{Client, HttpRoundTripper};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 /// A JSONRPC request object
