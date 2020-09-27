@@ -113,7 +113,7 @@ impl HttpRoundTripper for Tripper {
         let mut sock = TcpStream::connect_timeout(&server, self.timeout)?;
 
         // Send HTTP request
-        sock.write_all(format!("{} {} HTTP/1.0\r\n", method, uri).as_bytes())?;
+        sock.write_all(format!("{} {} HTTP/1.1\r\n", method, uri).as_bytes())?;
         for (key, value) in request.headers() {
             sock.write_all(key.as_ref())?;
             sock.write_all(b": ")?;
@@ -128,7 +128,7 @@ impl HttpRoundTripper for Tripper {
 
         // Parse first HTTP response header line
         let http_response = get_line(&mut reader, request_deadline)?;
-        if http_response.len() < 12 || !http_response.starts_with("HTTP/1.0 ") {
+        if http_response.len() < 12 || !http_response.starts_with("HTTP/1.1 ") {
             return Err(Error::HttpParseError);
         }
         match http_response[9..12].parse::<u16>() {
