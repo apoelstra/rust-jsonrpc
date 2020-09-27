@@ -8,7 +8,7 @@ use http;
 
 use std;
 use std::io::{BufRead, BufReader, Cursor, Write};
-use std::net::TcpStream;
+use std::net::{ToSocketAddrs, TcpStream};
 use std::time::{Instant, Duration};
 
 /// Simple bitcoind JSON RPC client that implements the necessary subset of HTTP
@@ -80,7 +80,7 @@ fn get_line<R: BufRead>(reader: &mut R, deadline: Instant) -> Result<String, Err
     while deadline > Instant::now() {
         match reader.read_line(&mut line) {
             // EOF reached for now, try again later
-            Ok(0) => std::thread::yield_now(),
+            Ok(0) => std::thread::sleep(Duration::from_millis(5)),
             // received useful data, return it
             Ok(_) => return Ok(line),
             // io error occurred, abort
@@ -96,34 +96,31 @@ impl HttpRoundTripper for Tripper {
 
     fn post(&self, request: http::Request<&[u8]>) -> Result<http::Response<Self::ResponseBody>, Self::Err> {
         // Parse request
-        let server = match request
-            .uri()
-            .authority_part()
-            .map(|authority|{
-                (
-                    authority.host(),
-                    authority.port_part().map(|p| p.as_u16()).unwrap_or(self.default_port)
-                )
-            }) {
-            Some(s) => s,
-            None => return Err(Error::NoHost),
-        };
+        let str_port = (
+            match request.uri().host() {
+                Some(s) => s,
+                None => return Err(Error::NoHost),
+            },
+            request.uri().port_u16().unwrap_or(self.default_port),
+        );
+        let server = str_port.to_socket_addrs()?.next().unwrap();
+
         let method = request.method();
         let uri = request.uri().path_and_query().map(|p| p.as_str()).unwrap_or("/");
 
         // Open connection
         let request_deadline = Instant::now() + self.timeout;
-        let mut sock = TcpStream::connect(server)?;
+        let mut sock = TcpStream::connect_timeout(&server, self.timeout)?;
 
         // Send HTTP request
         sock.write_all(format!("{} {} HTTP/1.0\r\n", method, uri).as_bytes())?;
         for (key, value) in request.headers() {
             sock.write_all(key.as_ref())?;
-            sock.write_all(": ".as_bytes())?;
+            sock.write_all(b": ")?;
             sock.write_all(value.as_ref())?;
-            sock.write_all("\r\n".as_bytes())?;
+            sock.write_all(b"\r\n")?;
         }
-        sock.write_all("\r\n".as_bytes())?;
+        sock.write_all(b"\r\n")?;
         sock.write_all(request.body())?;
 
         // Receive response
