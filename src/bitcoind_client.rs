@@ -3,7 +3,7 @@
 
 use ::HttpRoundTripper;
 
-use http::{Request, Response};
+use http;
 
 use std;
 use std::io::{BufRead, BufReader, Cursor, Write};
@@ -93,7 +93,7 @@ impl HttpRoundTripper for Tripper {
     type ResponseBody = Cursor<Vec<u8>>;
     type Err = Error;
 
-    fn post(&self, request: Request<&[u8]>) -> Result<Response<Self::ResponseBody>, Self::Err> {
+    fn post(&self, request: http::Request<&[u8]>) -> Result<http::Response<Self::ResponseBody>, Self::Err> {
         // Parse request
         let server = match request
             .uri()
@@ -146,7 +146,7 @@ impl HttpRoundTripper for Tripper {
 
         // Read and return actual response line
         get_line(&mut reader, request_deadline)
-            .map(|response| Response::new(Cursor::new(response.into_bytes())))
+            .map(|response| http::Response::new(Cursor::new(response.into_bytes())))
     }
 }
 
