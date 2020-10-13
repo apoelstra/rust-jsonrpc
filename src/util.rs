@@ -44,18 +44,18 @@ impl<'a> Hash for HashableValue<'a> {
                 } else {
                     n.to_string().hash(state);
                 }
-            },
+            }
             Value::String(ref s) => {
                 "string".hash(state);
                 s.hash(state);
-            },
+            }
             Value::Array(ref v) => {
                 "array".hash(state);
                 v.len().hash(state);
                 for obj in v {
                     HashableValue(obj).hash(state);
                 }
-            },
+            }
             Value::Object(ref m) => {
                 "object".hash(state);
                 m.len().hash(state);
@@ -116,5 +116,3 @@ mod tests {
         assert!(coll.contains(&m));
     }
 }
-
-
