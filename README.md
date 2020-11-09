@@ -22,7 +22,7 @@ struct MyStruct {
 fn main() {
     // The two Nones are for user/pass for authentication
     let rtt = jsonrpc::simple_rtt::Tripper::new();
-    let client = jsonrpc::client::Client::new(rtt, "example.org".to_owned(), None, None);
+    let client = jsonrpc::client::Client::with_rtt(rtt, "example.org".to_owned(), None, None);
     match client.do_rpc::<MyStruct>(&request) {
         Ok(mystruct) => // Ok!
         Err(e) => // Not so much.

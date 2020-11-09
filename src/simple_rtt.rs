@@ -196,6 +196,9 @@ mod tests {
             .build();
         let client = Client::with_rtt(rtt, "localhost:22".to_owned(), None, None);
         drop(client);
+
+        let client = Client::<Tripper>::new("localhost:22".to_owned(), None, None);
+        drop(client);
     }
 }
 
