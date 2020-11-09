@@ -154,8 +154,6 @@ pub enum Error {
     SocketError(std::io::Error),
     /// The HTTP header of the response couldn't be parsed
     HttpParseError,
-    /// The server responded with a non-200 HTTP code
-    ErrorCode(u16),
     /// We didn't receive a complete response till the deadline ran out
     Timeout,
 }
@@ -168,11 +166,8 @@ impl std::fmt::Display for Error {
             Error::NoHost => f.write_str("No host was given in the URL."),
             Error::SocketError(ref e) => write!(f, "Couldn't connect to host: {}", e),
             Error::HttpParseError => f.write_str("Couldn't parse response header."),
-            Error::ErrorCode(e) => write!(f, "HTTP error {}", e),
             Error::Timeout => f.write_str("Didn't receive response data in time, timed out."),
-        }.expect("writing the error message should work");
-
-        Ok(())
+        }
     }
 }
 

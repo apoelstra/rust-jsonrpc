@@ -30,6 +30,8 @@ pub enum Error {
     Json(serde_json::Error),
     /// HTTP client error
     Http(Box<dyn error::Error>),
+    /// The server responded with a non-200 HTTP code
+    HttpErrorCode(u16),
     /// Error response
     Rpc(RpcError),
     /// Response to a request did not have the expected nonce
@@ -63,6 +65,7 @@ impl fmt::Display for Error {
         match *self {
             Error::Json(ref e) => write!(f, "JSON decode error: {}", e),
             Error::Http(ref e) => write!(f, "HTTP error: {}", e),
+            Error::HttpErrorCode(e) => write!(f, "HTTP error {}", e),
             Error::Rpc(ref r) => write!(f, "RPC error response: {:?}", r),
             Error::BatchDuplicateResponseId(ref v) => {
                 write!(f, "duplicate RPC batch response ID: {}", v)

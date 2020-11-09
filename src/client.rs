@@ -126,12 +126,22 @@ impl<Rt: HttpRoundTripper + 'static> Client<Rt> {
         // Errors only on invalid header or builder reuse.
         let http_request = request_builder.body(&request_raw[..]).unwrap();
 
-        // nb we ignore the response code since we expect the body
-        // to contain information about any error
-        let (http_response, _) =
+        let (http_response, code) =
             self.roundtripper.post(http_request).map_err(|e| Error::Http(Box::new(e)))?;
 
-        Ok(serde_json::from_reader(http_response.into_body())?)
+        match serde_json::from_reader(http_response.into_body()) {
+            Ok(result) => Ok(result),  // ignore the status code if we get a result
+            Err(e) => {
+                // If we were unable to parse the result, the status code may
+                // tell us why
+                if code != 200 {
+                    Err(Error::HttpErrorCode(code))
+                } else {
+                    // If it was 200 then probably it was legitimately a parse error
+                    Err(e.into())
+                }
+            }
+        }
     }
 
     /// Sends a request to a client
