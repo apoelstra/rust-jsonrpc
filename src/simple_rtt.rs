@@ -94,7 +94,7 @@ impl HttpRoundTripper for Tripper {
     type ResponseBody = Cursor<Vec<u8>>;
     type Err = Error;
 
-    fn post(&self, request: http::Request<&[u8]>) -> Result<http::Response<Self::ResponseBody>, Self::Err> {
+    fn post(&self, request: http::Request<&[u8]>) -> Result<(http::Response<Self::ResponseBody>, u16), Self::Err> {
         // Parse request
         let str_port = (
             match request.uri().host() {
@@ -131,9 +131,8 @@ impl HttpRoundTripper for Tripper {
         if http_response.len() < 12 || !http_response.starts_with("HTTP/1.1 ") {
             return Err(Error::HttpParseError);
         }
-        match http_response[9..12].parse::<u16>() {
-            Ok(200) => {},
-            Ok(e) => return Err(Error::ErrorCode(e)),
+        let response_code = match http_response[9..12].parse::<u16>() {
+            Ok(n) => n,
             Err(_) => return Err(Error::HttpParseError),
         };
 
@@ -142,7 +141,7 @@ impl HttpRoundTripper for Tripper {
 
         // Read and return actual response line
         get_line(&mut reader, request_deadline)
-            .map(|response| http::Response::new(Cursor::new(response.into_bytes())))
+            .map(|response| (http::Response::new(Cursor::new(response.into_bytes())), response_code))
     }
 }
 
