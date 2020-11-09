@@ -7,14 +7,9 @@ dependencies have increased their Rust versions in minor/patch revisions, a bit
 of work is required for users who wish to use older versions of the compiler.
 In particular,
 
-For compatibility with Rust **1.31.0** or higher, run
+For compatibility with older versions of rustc, use the following commands to
+pull your dependencies back down to unbroken versions:
 ```
-cargo update --package 'unicode-normalization' --precise '0.1.9'
-```
-
-For compatibility with Rust **1.27.0** or higher, additionally run
-```
-cargo update --package 'cfg-if' --precise '0.1.9'
 cargo update --package 'serde_json' --precise '1.0.39'
 cargo update --package 'serde_derive' --precise '1.0.98'
 ```
