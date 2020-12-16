@@ -26,10 +26,10 @@ use Response;
 /// A library error
 #[derive(Debug)]
 pub enum Error {
+    /// A transport error
+    Transport(Box<error::Error>),
     /// Json error
     Json(serde_json::Error),
-    /// HTTP client error
-    Http(Box<error::Error>),
     /// Error response
     Rpc(RpcError),
     /// Response to a request did not have the expected nonce
@@ -61,39 +61,26 @@ impl From<RpcError> for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            Error::Transport(ref e) => write!(f, "transport error: {}", e),
             Error::Json(ref e) => write!(f, "JSON decode error: {}", e),
-            Error::Http(ref e) => write!(f, "HTTP error: {}", e),
             Error::Rpc(ref r) => write!(f, "RPC error response: {:?}", r),
             Error::BatchDuplicateResponseId(ref v) => {
                 write!(f, "duplicate RPC batch response ID: {}", v)
             }
             Error::WrongBatchResponseId(ref v) => write!(f, "wrong RPC batch response ID: {}", v),
-            _ => f.write_str(error::Error::description(self)),
+            Error::NonceMismatch => write!(f, "Nonce of response did not match nonce of request"),
+            Error::VersionMismatch => write!(f, "`jsonrpc` field set to non-\"2.0\""),
+            Error::EmptyBatch => write!(f, "batches can't be empty"),
+            Error::WrongBatchResponseSize => write!(f, "too many responses returned in batch"),
         }
     }
 }
 
 impl error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::Json(_) => "JSON decode error",
-            Error::Http(_) => "HTTP error",
-            Error::Rpc(_) => "RPC error response",
-            Error::NonceMismatch => "Nonce of response did not match nonce of request",
-            Error::VersionMismatch => "`jsonrpc` field set to non-\"2.0\"",
-            Error::EmptyBatch => "batches can't be empty",
-            Error::WrongBatchResponseSize => "too many responses returned in batch",
-            Error::BatchDuplicateResponseId(_) => "batch response contained a duplicate ID",
-            Error::WrongBatchResponseId(_) => {
-                "batch response contained an ID that didn't correspond to any request ID"
-            }
-        }
-    }
-
     fn cause(&self) -> Option<&error::Error> {
         match *self {
+            Error::Transport(ref e) => Some(&**e),
             Error::Json(ref e) => Some(e),
-            Error::Http(ref e) => Some(&**e),
             _ => None,
         }
     }
@@ -136,7 +123,7 @@ pub enum StandardError {
     InternalError,
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 /// A JSONRPC error object
 pub struct RpcError {
     /// The integer identifier of the error
@@ -144,11 +131,11 @@ pub struct RpcError {
     /// A string describing the error
     pub message: String,
     /// Additional data specific to the error
-    pub data: Option<serde_json::Value>,
+    pub data: Option<Box<serde_json::value::RawValue>>,
 }
 
 /// Create a standard error responses
-pub fn standard_error(code: StandardError, data: Option<serde_json::Value>) -> RpcError {
+pub fn standard_error(code: StandardError, data: Option<Box<serde_json::value::RawValue>>) -> RpcError {
     match code {
         StandardError::ParseError => RpcError {
             code: -32700,
@@ -185,7 +172,9 @@ pub fn result_to_response(
 ) -> Response {
     match result {
         Ok(data) => Response {
-            result: Some(data),
+            result: Some(serde_json::value::RawValue::from_string(
+                serde_json::to_string(&data).unwrap()
+            ).unwrap()),
             error: None,
             id: id,
             jsonrpc: Some(String::from("2.0")),

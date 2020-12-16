@@ -12,6 +12,7 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
+use std::borrow::Cow;
 use std::hash::{Hash, Hasher};
 
 use serde_json::Value;
@@ -25,13 +26,13 @@ use serde_json::Value;
 /// pair, which should never need decimal precision and therefore
 /// never use `f64`.
 #[derive(Clone, PartialEq, Debug)]
-pub struct HashableValue<'a>(pub &'a Value);
+pub struct HashableValue<'a>(pub Cow<'a, Value>);
 
 impl<'a> Eq for HashableValue<'a> {}
 
 impl<'a> Hash for HashableValue<'a> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        match *self.0 {
+        match *self.0.as_ref() {
             Value::Null => "null".hash(state),
             Value::Bool(false) => "false".hash(state),
             Value::Bool(true) => "true".hash(state),
@@ -53,7 +54,7 @@ impl<'a> Hash for HashableValue<'a> {
                 "array".hash(state);
                 v.len().hash(state);
                 for obj in v {
-                    HashableValue(obj).hash(state);
+                    HashableValue(Cow::Borrowed(obj)).hash(state);
                 }
             },
             Value::Object(ref m) => {
@@ -61,7 +62,7 @@ impl<'a> Hash for HashableValue<'a> {
                 m.len().hash(state);
                 for (key, val) in m {
                     key.hash(state);
-                    HashableValue(val).hash(state);
+                    HashableValue(Cow::Borrowed(val)).hash(state);
                 }
             }
         }
@@ -70,6 +71,7 @@ impl<'a> Hash for HashableValue<'a> {
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::Cow;
     use std::collections::HashSet;
     use std::str::FromStr;
 
@@ -77,20 +79,11 @@ mod tests {
 
     #[test]
     fn hash_value() {
-        let val = Value::from_str("null").unwrap();
-        let val = HashableValue(&val);
-
-        let t = Value::from_str("true").unwrap();
-        let t = HashableValue(&t);
-
-        let f = Value::from_str("false").unwrap();
-        let f = HashableValue(&f);
-
-        let ns = Value::from_str("[0, -0, 123.4567, -100000000]").unwrap();
-        let ns = HashableValue(&ns);
-
-        let m = Value::from_str("{ \"field\": 0, \"field\": -0 }").unwrap();
-        let m = HashableValue(&m);
+        let val = HashableValue(Cow::Owned(Value::from_str("null").unwrap()));
+        let t = HashableValue(Cow::Owned(Value::from_str("true").unwrap()));
+        let f = HashableValue(Cow::Owned(Value::from_str("false").unwrap()));
+        let ns = HashableValue(Cow::Owned(Value::from_str("[0, -0, 123.4567, -100000000]").unwrap()));
+        let m = HashableValue(Cow::Owned(Value::from_str("{ \"field\": 0, \"field\": -0 }").unwrap()));
 
         let mut coll = HashSet::new();
 
