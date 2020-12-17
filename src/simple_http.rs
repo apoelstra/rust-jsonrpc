@@ -253,6 +253,12 @@ impl Builder {
         self
     }
 
+    /// Add authentication information to the transport using a cookie string ('user:pass')
+    pub fn cookie_auth<S: AsRef<str>>(mut self, cookie: S) -> Self {
+        self.tp.basic_auth = Some(format!("Basic {}", &base64::encode(cookie.as_ref().as_bytes())));
+        self
+    }
+
     /// Builds the final `SimpleHttpTransport`
     pub fn build(self) -> SimpleHttpTransport {
         self.tp
