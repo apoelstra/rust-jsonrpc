@@ -207,7 +207,10 @@ impl Builder {
                 split.next().unwrap_or(s)
             };
             // (2) split off path
-            let before_path = after_scheme.splitn(2, "/").next().unwrap();
+            let (before_path, path) = {
+                let mut split = after_scheme.splitn(2, "/");
+                (split.next().unwrap(), split.next())
+            };
             // (3) split off auth part
             let after_auth = {
                 let mut split = before_path.splitn(2, "@");
@@ -233,9 +236,9 @@ impl Builder {
                 Some(a) => a,
                 None => return Err(Error::InvalidUrl(url)),
             };
+            self.tp.url = format!("/{}", path.unwrap_or(""));
         }
 
-        self.tp.url = url;
         Ok(self)
     }
 
