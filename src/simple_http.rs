@@ -154,13 +154,12 @@ impl Transport for SimpleHttpTransport {
         if http_response.len() < 12 || !http_response.starts_with("HTTP/1.1 ") {
             return Err(Error::HttpParseError);
         }
+        // Even if it's != 200, we parse the response as we may get a JSONRPC error instead
+        // of the less meaningful HTTP error code.
         let response_code = match http_response[9..12].parse::<u16>() {
             Ok(n) => n,
             Err(_) => return Err(Error::HttpParseError),
         };
-        if response_code != 200 {
-            return Err(Error::HttpErrorCode(response_code));
-        }
 
         // Skip response header fields
         while get_line(&mut reader, request_deadline)? != "\r\n" {}
@@ -168,7 +167,18 @@ impl Transport for SimpleHttpTransport {
         // Read and return actual response line
         let resp = get_line(&mut reader, request_deadline)?;
         //NB this could be serde_json::from_reader but then we don't control the timeout
-        Ok(serde_json::from_str(&resp)?)
+        match serde_json::from_str(&resp) {
+            Ok(s) => Ok(s),
+            // If we couldn't parse the response, then the HTTP error may tell us why
+            Err(e) => {
+                if response_code != 200 {
+                    Err(Error::HttpErrorCode(response_code))
+                } else {
+                    // If it was 200 then probably it was legitimately a parse error
+                    Err(e.into())
+                }
+            }
+        }
     }
 }
 
