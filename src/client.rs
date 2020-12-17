@@ -27,8 +27,8 @@ use serde;
 use serde_json;
 
 use super::{Request, Response};
-use util::HashableValue;
 use error::Error;
+use util::HashableValue;
 
 /// An interface for a transport over which to use the JSONRPC protocol.
 pub trait Transport {
@@ -39,7 +39,8 @@ pub trait Transport {
 
     /// Make an RPC call over the transport.
     fn call<R>(&self, impl serde::Serialize) -> Result<R, Self::Err>
-        where R: for<'a> serde::de::Deserialize<'a>;
+    where
+        R: for<'a> serde::de::Deserialize<'a>;
 }
 
 /// A JSON-RPC client.
@@ -93,8 +94,8 @@ impl<T: Transport + 'static> Client<T> {
 
         // If the request body is invalid JSON, the response is a single response object.
         // We ignore this case since we are confident we are producing valid JSON.
-        let responses: Vec<Response> = self.transport.call(requests)
-            .map_err(|e| Error::Transport(e.into()))?;
+        let responses: Vec<Response> =
+            self.transport.call(requests).map_err(|e| Error::Transport(e.into()))?;
         if responses.len() > requests.len() {
             return Err(Error::WrongBatchResponseSize);
         }
@@ -110,9 +111,10 @@ impl<T: Transport + 'static> Client<T> {
             }
         }
         // Match responses to the requests.
-        let results = requests.into_iter().map(|r| {
-            by_id.remove(&HashableValue(Cow::Borrowed(&r.id)))
-        }).collect();
+        let results = requests
+            .into_iter()
+            .map(|r| by_id.remove(&HashableValue(Cow::Borrowed(&r.id))))
+            .collect();
 
         // Since we're also just producing the first duplicate ID, we can also just produce the
         // first incorrect ID in case there are multiple.
@@ -147,15 +149,16 @@ impl<T: Transport + 'static> Client<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{io, sync};
     use serde;
+    use std::{io, sync};
 
     struct DummyTransport;
     impl Transport for DummyTransport {
         type Err = io::Error;
 
         fn call<R>(&self, _req: impl serde::Serialize) -> Result<R, Self::Err>
-            where R: for<'a> serde::de::Deserialize<'a>
+        where
+            R: for<'a> serde::de::Deserialize<'a>,
         {
             Err(io::Error::new(io::ErrorKind::Other, ""))
         }

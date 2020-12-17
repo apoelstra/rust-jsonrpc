@@ -2,16 +2,16 @@
 //! round-tripper that works with the bitcoind RPC server. This can be used
 //! if minimal dependencies are a goal and synchronous communication is ok.
 
-use std::{fmt, io, net, thread};
 use std::io::{BufRead, BufReader, Write};
-use std::net::{ToSocketAddrs, TcpStream};
-use std::time::{Instant, Duration};
+use std::net::{TcpStream, ToSocketAddrs};
+use std::time::{Duration, Instant};
+use std::{fmt, io, net, thread};
 
 use base64;
 use serde;
 use serde_json;
 
-use ::client::Transport;
+use client::Transport;
 
 /// The default TCP port to use for connections.
 /// Set to 8332, the default RPC port for bitcoind.
@@ -31,7 +31,10 @@ pub struct SimpleHttpTransport {
 impl Default for SimpleHttpTransport {
     fn default() -> Self {
         SimpleHttpTransport {
-            addr: net::SocketAddr::new(net::IpAddr::V4(net::Ipv4Addr::new(127, 0, 0, 1)), DEFAULT_PORT),
+            addr: net::SocketAddr::new(
+                net::IpAddr::V4(net::Ipv4Addr::new(127, 0, 0, 1)),
+                DEFAULT_PORT,
+            ),
             url: format!("http://127.0.0.1:{}/", DEFAULT_PORT).parse().unwrap(),
             timeout: Duration::from_secs(15),
             basic_auth: None,
@@ -116,7 +119,8 @@ impl Transport for SimpleHttpTransport {
     type Err = Error;
 
     fn call<R>(&self, req: impl serde::Serialize) -> Result<R, Self::Err>
-        where R: for<'a> serde::de::Deserialize<'a>
+    where
+        R: for<'a> serde::de::Deserialize<'a>,
     {
         // Open connection
         let request_deadline = Instant::now() + self.timeout;
@@ -168,7 +172,6 @@ pub struct Builder {
     tp: SimpleHttpTransport,
 }
 
-
 impl Builder {
     /// Construct new `Builder` with default configuration
     pub fn new() -> Builder {
@@ -190,7 +193,8 @@ impl Builder {
         // Do some very basic manual URL parsing because the uri/url crates
         // all have unicode-normalization as a dependency and that's broken.
 
-        { // scope for borrowck on url
+        {
+            // scope for borrowck on url
             // this clone is here because of 1.29 borrowck
             // remove this when 1.29 is deprecated
             let url_cloned = url.clone();
@@ -271,8 +275,8 @@ impl ::Client<SimpleHttpTransport> {
 mod tests {
     use std::net;
 
-    use ::Client;
     use super::*;
+    use Client;
 
     #[test]
     fn test_urls() {
@@ -293,7 +297,8 @@ mod tests {
     fn construct() {
         let tp = Builder::new()
             .timeout(Duration::from_millis(100))
-            .url("localhost:22").unwrap()
+            .url("localhost:22")
+            .unwrap()
             .auth("user", None)
             .build();
         let _ = Client::with_transport(tp);
@@ -301,4 +306,3 @@ mod tests {
         let _ = Client::simple_http("localhost:22".to_owned(), None, None).unwrap();
     }
 }
-

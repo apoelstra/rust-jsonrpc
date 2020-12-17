@@ -46,8 +46,8 @@ mod util;
 pub mod simple_http;
 
 // Re-export error type
-pub use error::Error;
 pub use client::{Client, Transport};
+pub use error::Error;
 
 #[derive(Debug, Clone, Serialize)]
 /// A JSONRPC request object
