@@ -63,7 +63,7 @@ impl SimpleHttpTransport {
         // Write headers
         sock.write_all(b"Content-Type: application/json-rpc\r\n")?;
         if let Some(ref auth) = self.basic_auth {
-            sock.write_all(b"Authentication: ")?;
+            sock.write_all(b"Authorization: ")?;
             sock.write_all(auth.as_ref())?;
             sock.write_all(b"\r\n")?;
         }
