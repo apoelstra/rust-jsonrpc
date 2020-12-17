@@ -126,10 +126,16 @@ impl Transport for SimpleHttpTransport {
         let request_deadline = Instant::now() + self.timeout;
         let mut sock = TcpStream::connect_timeout(&self.addr, self.timeout)?;
 
+        // If we used to_writer(), we'd not be able to set the Content-length header..
+        let req = serde_json::to_vec(&req)?;
+
         // Send HTTP request
         sock.write_all(format!("POST {} HTTP/1.1\r\n", self.url).as_bytes())?;
         // Write headers
         sock.write_all(b"Content-Type: application/json-rpc\r\n")?;
+        sock.write_all(b"Content-length: ")?;
+        sock.write_all(req.len().to_string().as_bytes())?;
+        sock.write_all(b"\r\n")?;
         if let Some(ref auth) = self.basic_auth {
             sock.write_all(b"Authorization: ")?;
             sock.write_all(auth.as_ref())?;
@@ -137,7 +143,7 @@ impl Transport for SimpleHttpTransport {
         }
         // Write body
         sock.write_all(b"\r\n")?;
-        serde_json::to_writer(&mut sock, &req)?;
+        sock.write_all(&req)?;
         sock.flush()?;
 
         // Receive response
