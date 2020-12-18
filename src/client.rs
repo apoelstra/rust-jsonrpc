@@ -18,6 +18,7 @@
 //! and parsing responses
 //!
 
+use std::fmt;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::atomic;
@@ -30,32 +31,32 @@ use super::{Request, Response};
 use util::HashableValue;
 use error::Error;
 
-/// An interface for a transport over which to use the JSONRPC protocol.
-pub trait Transport {
-    /// The Error type for this transport.
-    /// Errors will get converted into Box<std::error::Error> so the
-    /// type here is not use any further.
-    type Err: ::std::error::Error;
 
-    /// Make an RPC call over the transport.
-    fn call<R>(&self, impl serde::Serialize) -> Result<R, Self::Err>
-        where R: for<'a> serde::de::Deserialize<'a>;
+/// An interface for a transport over which to use the JSONRPC protocol.
+pub trait Transport: Send + Sync + 'static {
+    /// Send an RPC request over the transport.
+    fn send_request(&self, Request) -> Result<Response, Error>;
+    /// Send a batch of RPC requests over the transport.
+    fn send_batch(&self, &[Request]) -> Result<Vec<Response>, Error>;
+    /// Format the target of this transport.
+    /// I.e. the URL/socket/...
+    fn fmt_target(&self, f: &mut fmt::Formatter) -> fmt::Result;
 }
 
 /// A JSON-RPC client.
 ///
 /// Create a new Client using one of the transport-specific constructors:
 /// - [Client::simple_http] for the built-in bare-minimum HTTP transport
-pub struct Client<T: Transport> {
-    transport: T,
+pub struct Client {
+    pub(crate) transport: Box<dyn Transport>,
     nonce: atomic::AtomicUsize,
 }
 
-impl<T: Transport + 'static> Client<T> {
+impl Client {
     /// Creates a new client with the given transport.
-    pub fn with_transport(transport: T) -> Client<T> {
+    pub fn with_transport<T: Transport>(transport: T) -> Client {
         Client {
-            transport: transport,
+            transport: Box::new(transport),
             nonce: atomic::AtomicUsize::new(1),
         }
     }
@@ -77,8 +78,7 @@ impl<T: Transport + 'static> Client<T> {
 
     /// Sends a request to a client
     pub fn send_request(&self, request: Request) -> Result<Response, Error> {
-        let res: Result<Response, _> = self.transport.call(&request);
-        res.map_err(|e| Error::Transport(e.into()))
+        self.transport.send_request(request)
     }
 
     /// Sends a batch of requests to the client.  The return vector holds the response
@@ -93,8 +93,7 @@ impl<T: Transport + 'static> Client<T> {
 
         // If the request body is invalid JSON, the response is a single response object.
         // We ignore this case since we are confident we are producing valid JSON.
-        let responses: Vec<Response> = self.transport.call(requests)
-            .map_err(|e| Error::Transport(e.into()))?;
+        let responses = self.transport.send_batch(requests)?;
         if responses.len() > requests.len() {
             return Err(Error::WrongBatchResponseSize);
         }
@@ -144,21 +143,24 @@ impl<T: Transport + 'static> Client<T> {
     }
 }
 
+impl fmt::Debug for ::Client {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "jsonrpc::Client(")?;
+        self.transport.fmt_target(f)?;
+        write!(f, ")")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{io, sync};
-    use serde;
+    use std::sync;
 
     struct DummyTransport;
     impl Transport for DummyTransport {
-        type Err = io::Error;
-
-        fn call<R>(&self, _req: impl serde::Serialize) -> Result<R, Self::Err>
-            where R: for<'a> serde::de::Deserialize<'a>
-        {
-            Err(io::Error::new(io::ErrorKind::Other, ""))
-        }
+        fn send_request(&self, _: Request) -> Result<Response, Error> { Err(Error::NonceMismatch) }
+        fn send_batch(&self, _: &[Request]) -> Result<Vec<Response>, Error> { Ok(vec![]) }
+        fn fmt_target(&self, f: &mut fmt::Formatter) -> fmt::Result { Ok(()) }
     }
 
     #[test]
