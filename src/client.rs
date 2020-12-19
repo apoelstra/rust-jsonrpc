@@ -61,7 +61,10 @@ impl Client {
         }
     }
 
-    /// Builds a request
+    /// Builds a request.
+    ///
+    /// To construct the arguments, one can use one of the shorthand methods
+    /// [jsonrpc::arg] or [jsonrpc::try_arg].
     pub fn build_request<'a>(
         &self,
         method: &'a str,
@@ -122,7 +125,10 @@ impl Client {
         Ok(results)
     }
 
-    /// Make a request and deserialize the response
+    /// Make a request and deserialize the response.
+    ///
+    /// To construct the arguments, one can use one of the shorthand methods
+    /// [jsonrpc::arg] or [jsonrpc::try_arg].
     pub fn call<R: for<'a> serde::de::Deserialize<'a>>(
         &self,
         method: &str,

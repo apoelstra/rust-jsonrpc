@@ -51,6 +51,24 @@ pub use client::{Client, Transport};
 
 use serde_json::value::RawValue;
 
+/// Shorthand method to convert an argument into a [Box<serde_json::value::RawValue>].
+/// Since serializers rarely fail, it's probably easier to use [arg] instead.
+pub fn try_arg<T: serde::Serialize>(arg: T) -> Result<Box<RawValue>, serde_json::Error> {
+    RawValue::from_string(serde_json::to_string(&arg)?)
+}
+
+/// Shorthand method to convert an argument into a [Box<serde_json::value::RawValue>].
+///
+/// This conversion should not fail, so to avoid returning a [Result],
+/// in case of an error, the error is serialized as the return value.
+pub fn arg<T: serde::Serialize>(arg: T) -> Box<RawValue> {
+    match try_arg(arg) {
+        Ok(v) => v,
+        Err(e) => RawValue::from_string(format!("<<ERROR SERIALIZING ARGUMENT: {}>>", e))
+            .unwrap_or(RawValue::from_string("<<ERROR SERIALIZING ARGUMENT>>".to_owned()).unwrap()),
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 /// A JSONRPC request object
 pub struct Request<'a> {
@@ -176,5 +194,30 @@ mod tests {
         ]"#;
         let batch_response: Vec<Response> = serde_json::from_str(&s).unwrap();
         assert_eq!(batch_response.len(), 5);
+    }
+
+    #[test]
+    fn test_arg() {
+        macro_rules! test_arg {
+            ($val:expr, $t:ty) => {{
+                let val1: $t = $val;
+                let arg = super::arg(val1.clone());
+                let val2: $t = serde_json::from_str(arg.get()).expect(stringify!($val));
+                assert_eq!(val1, val2, "failed test for {}", stringify!($val));
+            }}
+        }
+
+        test_arg!(true, bool);
+        test_arg!(42, u8);
+        test_arg!(42, usize);
+        test_arg!(42, isize);
+        test_arg!(vec![42, 35], Vec<u8>);
+        test_arg!(String::from("test"), String);
+
+        #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+        struct Test {
+            v: String,
+        }
+        test_arg!(Test { v: String::from("test"), }, Test);
     }
 }
