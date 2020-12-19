@@ -62,7 +62,9 @@ impl SimpleHttpTransport {
         let body = serde_json::to_vec(&req)?;
 
         // Send HTTP request
-        sock.write_all(format!("POST {} HTTP/1.1\r\n", self.path).as_bytes())?;
+        sock.write_all(b"POST ")?;
+        sock.write_all(self.path.as_bytes())?;
+        sock.write_all(b" HTTP/1.1\r\n")?;
         // Write headers
         sock.write_all(b"Content-Type: application/json-rpc\r\n")?;
         sock.write_all(b"Content-Length: ")?;
