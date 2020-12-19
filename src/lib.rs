@@ -49,13 +49,15 @@ pub mod simple_http;
 pub use error::Error;
 pub use client::{Client, Transport};
 
+use serde_json::value::RawValue;
+
 #[derive(Debug, Clone, Serialize)]
 /// A JSONRPC request object
 pub struct Request<'a> {
     /// The name of the RPC call
     pub method: &'a str,
     /// Parameters to the RPC call
-    pub params: &'a [Box<serde_json::value::RawValue>],
+    pub params: &'a [Box<RawValue>],
     /// Identifier for this Request, which should appear in the response
     pub id: serde_json::Value,
     /// jsonrpc field, MUST be "2.0"
@@ -66,7 +68,7 @@ pub struct Request<'a> {
 /// A JSONRPC response object
 pub struct Response {
     /// A result if there is one, or null
-    pub result: Option<Box<serde_json::value::RawValue>>,
+    pub result: Option<Box<RawValue>>,
     /// An error if there is one, or null
     pub error: Option<error::RpcError>,
     /// Identifier for this Request, which should match that of the request

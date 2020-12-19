@@ -24,8 +24,8 @@ use std::collections::HashMap;
 use std::sync::atomic;
 
 use serde;
-// use base64;
 use serde_json;
+use serde_json::value::RawValue;
 
 use super::{Request, Response};
 use util::HashableValue;
@@ -65,7 +65,7 @@ impl Client {
     pub fn build_request<'a>(
         &self,
         method: &'a str,
-        params: &'a [Box<serde_json::value::RawValue>],
+        params: &'a [Box<RawValue>],
     ) -> Request<'a> {
         let nonce = self.nonce.fetch_add(1, atomic::Ordering::Relaxed);
         Request {
@@ -126,7 +126,7 @@ impl Client {
     pub fn call<R: for<'a> serde::de::Deserialize<'a>>(
         &self,
         method: &str,
-        args: &[Box<serde_json::value::RawValue>],
+        args: &[Box<RawValue>],
     ) -> Result<R, Error> {
         let request = self.build_request(method, args);
         let id = request.id.clone();
