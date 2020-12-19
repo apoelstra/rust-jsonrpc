@@ -166,7 +166,7 @@ mod tests {
     impl Transport for DummyTransport {
         fn send_request(&self, _: Request) -> Result<Response, Error> { Err(Error::NonceMismatch) }
         fn send_batch(&self, _: &[Request]) -> Result<Vec<Response>, Error> { Ok(vec![]) }
-        fn fmt_target(&self, f: &mut fmt::Formatter) -> fmt::Result { Ok(()) }
+        fn fmt_target(&self, _: &mut fmt::Formatter) -> fmt::Result { Ok(()) }
     }
 
     #[test]

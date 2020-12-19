@@ -117,7 +117,12 @@ impl SimpleHttpTransport {
 #[derive(Debug)]
 pub enum Error {
     /// An invalid URL was passed.
-    InvalidUrl(String),
+    InvalidUrl {
+        /// The URL passed.
+        url: String,
+        /// The reason the URL is invalid.
+        reason: &'static str,
+    },
     /// An error occurred on the socket layer
     SocketError(io::Error),
     /// The HTTP header of the response couldn't be parsed
@@ -130,12 +135,22 @@ pub enum Error {
     Json(serde_json::Error),
 }
 
+impl Error {
+    /// Utility method to create [Error::InvalidUrl] variants.
+    fn url<U: Into<String>>(url: U, reason: &'static str) -> Error {
+        Error::InvalidUrl {
+            url: url.into(),
+            reason: reason,
+        }
+    }
+}
+
 impl ::std::error::Error for Error {}
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match *self {
-            Error::InvalidUrl(ref u) => write!(f, "invalid URL: {}", u),
+            Error::InvalidUrl{ref url, ref reason} => write!(f, "invalid URL '{}': {}", url, reason),
             Error::SocketError(ref e) => write!(f, "Couldn't connect to host: {}", e),
             Error::HttpParseError => f.write_str("Couldn't parse response header."),
             Error::HttpErrorCode(c) => write!(f, "unexpected HTTP code: {}", c),
@@ -223,12 +238,29 @@ impl Builder {
         // Do some very basic manual URL parsing because the uri/url crates
         // all have unicode-normalization as a dependency and that's broken.
 
+        // The fallback port in case no port was provided.
+        // This changes when the http or https scheme was provided.
+        let mut fallback_port = DEFAULT_PORT;
+
         // We need to get the hostname and the port.
         // (1) Split scheme
         let after_scheme = {
             let mut split = url.splitn(2, "://");
             let s = split.next().unwrap();
-            split.next().unwrap_or(s)
+            match split.next() {
+                None => s, // no scheme present
+                Some(after) => {
+                    // Check if the scheme is http or https.
+                    if s == "http" {
+                        fallback_port = 80;
+                    } else if s == "https" {
+                        fallback_port = 443;
+                    } else {
+                        return Err(Error::url(url, "scheme schould be http or https"));
+                    }
+                    after
+                }
+            }
         };
         // (2) split off path
         let (before_path, path) = {
@@ -250,18 +282,18 @@ impl Builder {
         let port: u16 = match split.next() {
             Some(port_str) => match port_str.parse() {
                 Ok(port) => port,
-                Err(_) => return Err(Error::InvalidUrl(url.to_owned())),
+                Err(_) => return Err(Error::url(url, "invalid port")),
             },
-            None => DEFAULT_PORT,
+            None => fallback_port,
         };
         // make sure we don't have a second colon in this part
         if split.next().is_some() {
-            return Err(Error::InvalidUrl(url.to_owned()));
+            return Err(Error::url(url, "unexpected extra colon"));
         }
 
-        self.tp.addr = match format!("{}:{}", hostname, port).to_socket_addrs()?.next() {
+        self.tp.addr = match (hostname, port).to_socket_addrs()?.next() {
             Some(a) => a,
-            None => return Err(Error::InvalidUrl(url.to_owned())),
+            None => return Err(Error::url(url, "invalid hostname: error extracting socket address")),
         };
         self.tp.path = path.to_owned();
         Ok(self)
@@ -314,7 +346,7 @@ mod tests {
 
     #[test]
     fn test_urls() {
-        let addr: net::SocketAddr = "localhost:22".to_socket_addrs().unwrap().next().unwrap();
+        let addr: net::SocketAddr = ("localhost", 22).to_socket_addrs().unwrap().next().unwrap();
         let urls = [
             "localhost:22",
             "http://localhost:22/",
@@ -324,6 +356,42 @@ mod tests {
         for u in &urls {
             let tp = Builder::new().url(*u).unwrap().build();
             assert_eq!(tp.addr, addr);
+        }
+
+        // Default port and 80 and 443 fill-in.
+        let addr: net::SocketAddr = ("localhost", 80).to_socket_addrs().unwrap().next().unwrap();
+        let tp = Builder::new().url("http://localhost/").unwrap().build();
+        assert_eq!(tp.addr, addr);
+        let addr: net::SocketAddr = ("localhost", 443).to_socket_addrs().unwrap().next().unwrap();
+        let tp = Builder::new().url("https://localhost/").unwrap().build();
+        assert_eq!(tp.addr, addr);
+        let addr: net::SocketAddr = ("localhost", super::DEFAULT_PORT).to_socket_addrs().unwrap().next().unwrap();
+        let tp = Builder::new().url("localhost").unwrap().build();
+        assert_eq!(tp.addr, addr);
+
+        let valid_urls = [
+            "localhost",
+            "127.0.0.1:8080",
+            "http://127.0.0.1:8080/",
+            "http://127.0.0.1:8080/rpc/test",
+            "https://127.0.0.1/rpc/test",
+        ];
+        for u in &valid_urls {
+            Builder::new().url(*u).expect(&format!("error for: {}", u));
+        }
+
+        let invalid_urls = [
+            "127.0.0.1.0:8080",
+            "httpx://127.0.0.1:8080/",
+            "ftp://127.0.0.1:8080/rpc/test",
+            "http://127.0.0./rpc/test",
+            // NB somehow, Rust's IpAddr accepts "127.0.0" and adds the extra 0..
+        ];
+        for u in &invalid_urls {
+            if let Ok(b) = Builder::new().url(*u) {
+                let tp = b.build();
+                panic!("expected error for url {}, got {:?}", u, tp);
+            }
         }
     }
 
