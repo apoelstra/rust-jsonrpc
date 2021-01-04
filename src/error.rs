@@ -27,7 +27,7 @@ use Response;
 #[derive(Debug)]
 pub enum Error {
     /// A transport error
-    Transport(Box<error::Error>),
+    Transport(Box<dyn error::Error + Send + Sync>),
     /// Json error
     Json(serde_json::Error),
     /// Error response
