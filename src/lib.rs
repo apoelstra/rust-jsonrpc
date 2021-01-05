@@ -17,10 +17,6 @@
 //! Rust support for the JSON-RPC 2.0 protocol.
 //!
 
-#![crate_type = "lib"]
-#![crate_type = "rlib"]
-#![crate_type = "dylib"]
-#![crate_name = "jsonrpc"]
 // Coding conventions
 #![deny(non_upper_case_globals)]
 #![deny(non_camel_case_types)]
@@ -28,8 +24,6 @@
 #![deny(unused_mut)]
 #![warn(missing_docs)]
 
-// extern crate base64;
-// extern crate http;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
