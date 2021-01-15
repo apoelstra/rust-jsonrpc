@@ -11,7 +11,9 @@ For compatibility with older versions of rustc, use the following commands to
 pull your dependencies back down to unbroken versions:
 ```
 cargo update --package 'serde_json' --precise '1.0.39'
+cargo update --package 'serde' --precise '1.0.98'
 cargo update --package 'serde_derive' --precise '1.0.98'
+cargo update --package 'byteorder' --precise '1.3.4'
 ```
 
 # Rust JSONRPC Client
