@@ -24,9 +24,7 @@
 #![deny(unused_mut)]
 #![warn(missing_docs)]
 
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
+#[macro_use] extern crate serde;
 pub extern crate serde_json;
 
 #[cfg(feature = "base64-compat")]

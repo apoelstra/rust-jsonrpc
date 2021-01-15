@@ -20,8 +20,7 @@ default = [ "simple_http" ]
 simple_http = [ "base64-compat" ]
 
 [dependencies]
-serde = "1"
-serde_derive = "1"
+serde = { version = "1", features = [ "derive" ] }
 serde_json = { version = "1", features = [ "raw_value" ] }
 
 base64-compat = { version = "1.0.0", optional = true }
