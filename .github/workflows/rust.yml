@@ -1,0 +1,41 @@
+on: [push, pull_request]
+
+name: Continuous integration
+
+jobs:
+  rustfmt_check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            components: rustfmt
+            override: true
+      - run: cargo fmt -- --check
+
+  Tests:
+    name: Tests
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macOS-latest
+          - windows-latest
+        toolchain:
+          - 1.29.0
+          - stable
+    steps:
+      - name: Checkout Crate
+        uses: actions/checkout@v2
+      - name: Checkout Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.toolchain }}
+          override: true
+      - name: Pin serde dependencies if rust 1.29
+        if: matrix.toolchain == '1.29.0'
+        run: cargo generate-lockfile --verbose && cargo update --package 'serde_json' --precise '1.0.39' && cargo update --package 'serde_derive' --precise '1.0.98'
+      - name: Running tests on ${{ matrix.toolchain }}
+        run: cargo test --verbose --all-features
