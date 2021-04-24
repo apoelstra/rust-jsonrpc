@@ -1,7 +1,7 @@
-//! This module implements a synchronous transport over a raw TcpListener. Note that
-//! it does not handle TCP over Unix Domain Sockets, see `simple_uds` for this.
+//! This module implements a synchronous transport over a raw TcpListener.
 
-use std::{fmt, io, net, time};
+use std::os::unix::net::UnixStream;
+use std::{fmt, io, path, time};
 
 use serde;
 use serde_json;
@@ -9,7 +9,7 @@ use serde_json;
 use client::Transport;
 use {Request, Response};
 
-/// Error that can occur while using the TCP transport.
+/// Error that can occur while using the UDS transport.
 #[derive(Debug)]
 pub enum Error {
     /// An error occurred on the socket layer
@@ -53,20 +53,20 @@ impl From<Error> for ::Error {
 
 impl ::std::error::Error for Error {}
 
-/// Simple synchronous TCP transport.
+/// Simple synchronous UDS transport.
 #[derive(Debug, Clone)]
-pub struct TcpTransport {
-    /// The internet socket address to connect to
-    pub addr: net::SocketAddr,
-    /// The read and write timeout to use for this connection
+pub struct UdsTransport {
+    /// The path to the Unix Domain Socket
+    pub sockpath: path::PathBuf,
+    /// The read and write timeout to use
     pub timeout: Option<time::Duration>,
 }
 
-impl TcpTransport {
-    /// Create a new TcpTransport without timeouts
-    pub fn new(addr: net::SocketAddr) -> TcpTransport {
-        TcpTransport {
-            addr,
+impl UdsTransport {
+    /// Create a new UdsTransport without timeouts to use
+    pub fn new<P: AsRef<path::Path>>(sockpath: P) -> UdsTransport {
+        UdsTransport {
+            sockpath: sockpath.as_ref().to_path_buf(),
             timeout: None,
         }
     }
@@ -75,7 +75,7 @@ impl TcpTransport {
     where
         R: for<'a> serde::de::Deserialize<'a>,
     {
-        let mut sock = net::TcpStream::connect(&self.addr)?;
+        let mut sock = UnixStream::connect(&self.sockpath)?;
         sock.set_read_timeout(self.timeout)?;
         sock.set_write_timeout(self.timeout)?;
 
@@ -90,7 +90,7 @@ impl TcpTransport {
     }
 }
 
-impl Transport for TcpTransport {
+impl Transport for UdsTransport {
     fn send_request(&self, req: Request) -> Result<Response, ::Error> {
         Ok(self.request(req)?)
     }
@@ -100,45 +100,50 @@ impl Transport for TcpTransport {
     }
 
     fn fmt_target(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.addr)
+        write!(f, "{}", self.sockpath.to_string_lossy())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use std::{
+        fs,
         io::{Read, Write},
+        os::unix::net::UnixListener,
+        process,
         thread,
     };
 
     use super::*;
     use Client;
 
-    // Test a dummy request / response over a raw TCP transport
+    // Test a dummy request / response over an UDS
     #[test]
-    fn sanity_check_tcp_transport() {
-        let addr: net::SocketAddr =
-            net::SocketAddrV4::new(net::Ipv4Addr::new(127, 0, 0, 1), 0).into();
-        let server = net::TcpListener::bind(&addr).unwrap();
-        let addr = server.local_addr().unwrap();
+    fn sanity_check_uds_transport() {
+        let socket_path: path::PathBuf = format!("uds_scratch_{}.socket", process::id()).into();
+        // Any leftover?
+        fs::remove_file(&socket_path).unwrap_or_else(|_| ());
+
+        let server = UnixListener::bind(&socket_path).unwrap();
         let dummy_req = Request {
-            method: "arandommethod",
+            method: "getinfo",
             params: &[],
-            id: serde_json::Value::Number(4242242.into()),
+            id: serde_json::Value::Number(111.into()),
             jsonrpc: Some("2.0".into()),
         };
         let dummy_req_ser = serde_json::to_vec(&dummy_req).unwrap();
         let dummy_resp = Response {
             result: None,
             error: None,
-            id: serde_json::Value::Number(4242242.into()),
+            id: serde_json::Value::Number(111.into()),
             jsonrpc: Some("2.0".into()),
         };
         let dummy_resp_ser = serde_json::to_vec(&dummy_resp).unwrap();
 
+        let cli_socket_path = socket_path.clone();
         let client_thread = thread::spawn(move || {
-            let transport = TcpTransport {
-                addr,
+            let transport = UdsTransport {
+                sockpath: cli_socket_path,
                 timeout: Some(time::Duration::from_secs(5)),
             };
             let client = Client::with_transport(transport);
@@ -159,5 +164,9 @@ mod tests {
         stream.flush().unwrap();
         let recv_resp = client_thread.join().unwrap();
         assert_eq!(serde_json::to_vec(&recv_resp).unwrap(), dummy_resp_ser);
+
+        // Clean up
+        drop(server);
+        fs::remove_file(&socket_path).unwrap();
     }
 }
