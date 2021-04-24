@@ -25,6 +25,7 @@ jobs:
         toolchain:
           - 1.29.0
           - stable
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout Crate
         uses: actions/checkout@v2
