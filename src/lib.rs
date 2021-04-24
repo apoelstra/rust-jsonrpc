@@ -39,6 +39,9 @@ mod util;
 #[cfg(feature = "simple_http")]
 pub mod simple_http;
 
+#[cfg(feature = "simple_tcp")]
+pub mod simple_tcp;
+
 // Re-export error type
 pub use client::{Client, Transport};
 pub use error::Error;
