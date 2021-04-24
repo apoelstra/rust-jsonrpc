@@ -3,17 +3,6 @@ on: [push, pull_request]
 name: Continuous integration
 
 jobs:
-  rustfmt_check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
-        with:
-            toolchain: stable
-            components: rustfmt
-            override: true
-      - run: cargo fmt -- --check
-
   Tests:
     name: Tests
     strategy:
@@ -25,6 +14,7 @@ jobs:
         toolchain:
           - 1.29.0
           - stable
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout Crate
         uses: actions/checkout@v2
