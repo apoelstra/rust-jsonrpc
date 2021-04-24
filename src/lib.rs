@@ -44,6 +44,8 @@ pub mod simple_tcp;
 
 #[cfg(feature = "simple_uds")]
 pub mod simple_uds;
+#[cfg(all(windows, feature = "simple_uds"))]
+extern crate uds_windows;
 
 // Re-export error type
 pub use client::{Client, Transport};

@@ -1,6 +1,10 @@
 //! This module implements a synchronous transport over a raw TcpListener.
 
+#[cfg(not(windows))]
 use std::os::unix::net::UnixStream;
+#[cfg(windows)]
+use uds_windows::UnixStream;
+
 use std::{fmt, io, path, time};
 
 use serde;
@@ -106,10 +110,14 @@ impl Transport for UdsTransport {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(not(windows))]
+    use std::os::unix::net::UnixListener;
+    #[cfg(windows)]
+    use uds_windows::UnixListener;
+
     use std::{
         fs,
         io::{Read, Write},
-        os::unix::net::UnixListener,
         thread,
     };
 
