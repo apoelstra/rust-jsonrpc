@@ -18,9 +18,9 @@
 //! and parsing responses
 //!
 
-use std::fmt;
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fmt;
 use std::sync::atomic;
 
 use serde;
@@ -28,9 +28,8 @@ use serde_json;
 use serde_json::value::RawValue;
 
 use super::{Request, Response};
-use util::HashableValue;
 use error::Error;
-
+use util::HashableValue;
 
 /// An interface for a transport over which to use the JSONRPC protocol.
 pub trait Transport: Send + Sync + 'static {
@@ -65,11 +64,7 @@ impl Client {
     ///
     /// To construct the arguments, one can use one of the shorthand methods
     /// [jsonrpc::arg] or [jsonrpc::try_arg].
-    pub fn build_request<'a>(
-        &self,
-        method: &'a str,
-        params: &'a [Box<RawValue>],
-    ) -> Request<'a> {
+    pub fn build_request<'a>(&self, method: &'a str, params: &'a [Box<RawValue>]) -> Request<'a> {
         let nonce = self.nonce.fetch_add(1, atomic::Ordering::Relaxed);
         Request {
             method: method,
@@ -112,9 +107,10 @@ impl Client {
             }
         }
         // Match responses to the requests.
-        let results = requests.into_iter().map(|r| {
-            by_id.remove(&HashableValue(Cow::Borrowed(&r.id)))
-        }).collect();
+        let results = requests
+            .into_iter()
+            .map(|r| by_id.remove(&HashableValue(Cow::Borrowed(&r.id))))
+            .collect();
 
         // Since we're also just producing the first duplicate ID, we can also just produce the
         // first incorrect ID in case there are multiple.
@@ -164,9 +160,15 @@ mod tests {
 
     struct DummyTransport;
     impl Transport for DummyTransport {
-        fn send_request(&self, _: Request) -> Result<Response, Error> { Err(Error::NonceMismatch) }
-        fn send_batch(&self, _: &[Request]) -> Result<Vec<Response>, Error> { Ok(vec![]) }
-        fn fmt_target(&self, _: &mut fmt::Formatter) -> fmt::Result { Ok(()) }
+        fn send_request(&self, _: Request) -> Result<Response, Error> {
+            Err(Error::NonceMismatch)
+        }
+        fn send_batch(&self, _: &[Request]) -> Result<Vec<Response>, Error> {
+            Ok(vec![])
+        }
+        fn fmt_target(&self, _: &mut fmt::Formatter) -> fmt::Result {
+            Ok(())
+        }
     }
 
     #[test]
