@@ -20,6 +20,9 @@ default = [ "simple_http", "simple_tcp" ]
 simple_http = [ "base64-compat" ]
 # Basic transport over a raw TcpListener
 simple_tcp = []
+# Basic transport over a raw UnixStream
+simple_uds = []
+
 
 [dependencies]
 serde = "1"
