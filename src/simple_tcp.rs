@@ -122,8 +122,8 @@ mod tests {
         let server = net::TcpListener::bind(&addr).unwrap();
         let addr = server.local_addr().unwrap();
         let dummy_req = Request {
-            method: "arandommethod",
-            params: &[],
+            method: "arandommethod".into(),
+            params: serde_json::Value::Array(vec![]),
             id: serde_json::Value::Number(4242242.into()),
             jsonrpc: Some("2.0".into()),
         };

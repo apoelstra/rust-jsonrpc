@@ -133,8 +133,8 @@ mod tests {
 
         let server = UnixListener::bind(&socket_path).unwrap();
         let dummy_req = Request {
-            method: "getinfo",
-            params: &[],
+            method: "getinfo".into(),
+            params: serde_json::Value::Array(vec![]),
             id: serde_json::Value::Number(111.into()),
             jsonrpc: Some("2.0".into()),
         };

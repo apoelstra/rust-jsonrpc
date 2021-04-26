@@ -64,13 +64,13 @@ impl Client {
     ///
     /// To construct the arguments, one can use one of the shorthand methods
     /// [jsonrpc::arg] or [jsonrpc::try_arg].
-    pub fn build_request<'a>(&self, method: &'a str, params: &'a [Box<RawValue>]) -> Request<'a> {
+    pub fn build_request<'a>(&self, method: &'a str, params: serde_json::Value) -> Request<'a> {
         let nonce = self.nonce.fetch_add(1, atomic::Ordering::Relaxed);
         Request {
-            method: method,
+            method: method.into(),
             params: params,
             id: serde_json::Value::from(nonce),
-            jsonrpc: Some("2.0"),
+            jsonrpc: Some("2.0".into()),
         }
     }
 
@@ -128,7 +128,7 @@ impl Client {
     pub fn call<R: for<'a> serde::de::Deserialize<'a>>(
         &self,
         method: &str,
-        args: &[Box<RawValue>],
+        args: serde_json::Value,
     ) -> Result<R, Error> {
         let request = self.build_request(method, args);
         let id = request.id.clone();
@@ -175,9 +175,9 @@ mod tests {
     fn sanity() {
         let client = Client::with_transport(DummyTransport);
         assert_eq!(client.nonce.load(sync::atomic::Ordering::Relaxed), 1);
-        let req1 = client.build_request("test", &[]);
+        let req1 = client.build_request("test", serde_json::Value::Array(vec![]));
         assert_eq!(client.nonce.load(sync::atomic::Ordering::Relaxed), 2);
-        let req2 = client.build_request("test", &[]);
+        let req2 = client.build_request("test", serde_json::Value::Array(vec![]));
         assert_eq!(client.nonce.load(sync::atomic::Ordering::Relaxed), 3);
         assert!(req1.id != req2.id);
     }

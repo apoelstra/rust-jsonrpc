@@ -71,17 +71,17 @@ pub fn arg<T: serde::Serialize>(arg: T) -> Box<RawValue> {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 /// A JSONRPC request object
 pub struct Request<'a> {
     /// The name of the RPC call
-    pub method: &'a str,
+    pub method: std::borrow::Cow<'a, str>,
     /// Parameters to the RPC call
-    pub params: &'a [Box<RawValue>],
+    pub params: serde_json::Value,
     /// Identifier for this Request, which should appear in the response
     pub id: serde_json::Value,
     /// jsonrpc field, MUST be "2.0"
-    pub jsonrpc: Option<&'a str>,
+    pub jsonrpc: Option<std::borrow::Cow<'a, str>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
