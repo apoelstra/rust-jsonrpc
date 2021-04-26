@@ -106,10 +106,7 @@ impl Transport for TcpTransport {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        io::{Read, Write},
-        thread,
-    };
+    use std::{io::Write, thread};
 
     use super::*;
     use Client;
@@ -127,7 +124,6 @@ mod tests {
             id: serde_json::Value::Number(4242242.into()),
             jsonrpc: Some("2.0".into()),
         };
-        let dummy_req_ser = serde_json::to_vec(&dummy_req).unwrap();
         let dummy_resp = Response {
             result: None,
             error: None,
@@ -136,12 +132,13 @@ mod tests {
         };
         let dummy_resp_ser = serde_json::to_vec(&dummy_resp).unwrap();
 
+        let dummy_req_dup = dummy_req.clone();
         let client_thread = thread::spawn(move || {
             let transport = TcpTransport::new(addr);
             let client = Client::with_transport(transport);
 
             loop {
-                match client.send_request(dummy_req.clone()) {
+                match client.send_request(dummy_req_dup.clone()) {
                     Ok(resp) => return resp,
                     Err(e) => {
                         // Print so should it fail it can be debugged with --nocapture
@@ -154,12 +151,9 @@ mod tests {
 
         let (mut stream, _) = server.accept().unwrap();
         stream.set_read_timeout(Some(time::Duration::from_secs(5))).unwrap();
-        let mut recv_req = vec![0; dummy_req_ser.len()];
-        let mut read = 0;
-        while read < dummy_req_ser.len() {
-            read += stream.read(&mut recv_req[read..]).unwrap();
-        }
-        assert_eq!(recv_req, dummy_req_ser);
+        let req: Request =
+            serde_json::Deserializer::from_reader(&mut stream).into_iter().next().unwrap().unwrap();
+        assert_eq!(req, dummy_req);
 
         stream.write(&dummy_resp_ser).unwrap();
         stream.flush().unwrap();
