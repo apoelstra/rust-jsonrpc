@@ -58,6 +58,9 @@ impl SimpleHttpTransport {
         let request_deadline = Instant::now() + self.timeout;
         let mut sock = TcpStream::connect_timeout(&self.addr, self.timeout)?;
 
+        sock.set_read_timeout(Some(self.timeout))?;
+        sock.set_write_timeout(Some(self.timeout))?;
+
         // Serialize the body first so we can set the Content-Length header.
         let body = serde_json::to_vec(&req)?;
 
