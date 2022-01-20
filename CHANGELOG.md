@@ -1,3 +1,14 @@
+# 0.12.1 - 2022-01-20
+
+## Features
+
+* A new set of transports were added for JSONRPC over raw TCP sockets (one using `SocketAddr`, and
+  one UNIX-only using Unix Domain Sockets)
+
+## Bug fixes
+
+* The `Content-Type` HTTP header is now correctly set to `application/json`
+* The `Connection: Close` HTTP header is now sent for requests
 
 # 0.12.0 - 2020-12-16
 
