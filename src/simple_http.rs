@@ -100,6 +100,11 @@ impl SimpleHttpTransport {
         // Skip response header fields
         while get_line(&mut reader, request_deadline)? != "\r\n" {}
 
+        if response_code == 401 {
+            // There is no body in a 401 response, so don't try to read it
+            return Err(Error::HttpErrorCode(response_code));
+        }
+
         // Even if it's != 200, we parse the response as we may get a JSONRPC error instead
         // of the less meaningful HTTP error code.
         let resp_body = get_line(&mut reader, request_deadline)?;
