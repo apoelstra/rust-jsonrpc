@@ -20,30 +20,30 @@ cargo +1.29 update --package 'serde_derive' --precise '1.0.98'
 
 Rudimentary support for sending JSONRPC 2.0 requests and receiving responses.
 
-To send a request which should retrieve the above structure, consider the following
-example code
+As an example, hit a local bitcoind JSON-RPC endpoint and call the `uptime` command.
 
 ```rust
-extern crate jsonrpc;
-extern crate serde;
-#[macro_use] extern crate serde_derive;
+use jsonrpc::Client;
+use jsonrpc::simple_http::{self, SimpleHttpTransport};
 
-#[derive(Deserialize)]
-struct MyStruct {
-    elem1: bool,
-    elem2: String,
-    elem3: Vec<usize>
+fn client(url: &str, user: &str, pass: &str) -> Result<Client, simple_http::Error> {
+    let t = SimpleHttpTransport::builder()
+        .url(url)?
+        .auth(user, Some(pass))
+        .build();
+
+    Ok(Client::with_transport(t))
 }
 
+// Demonstrate an example JSON-RCP call against bitcoind.
 fn main() {
-    // The two Nones are for user/pass for authentication
-    let rtt = jsonrpc::simple_rtt::Tripper::new();
-    let client = jsonrpc::client::Client::with_rtt(rtt, "example.org".to_owned(), None, None);
-    match client.do_rpc::<MyStruct>(&request) {
-        Ok(mystruct) => // Ok!
-        Err(e) => // Not so much.
-    }
-}
+    let client = client("localhost:18443", "user", "pass").expect("failed to create client");
+    let request = client.build_request("uptime", &[]);
+    let response = client.send_request(request).expect("send_request failed");
 
+    // For other commands this would be a struct matching the returned json.
+    let result: u64 = response.result().expect("response is an error, use check_error");
+    println!("bitcoind uptime: {}", result);
+}
 ```
 
