@@ -170,7 +170,7 @@ mod tests {
     #[test]
     fn null_result() {
         let s = r#"{"result":null,"error":null,"id":"test"}"#;
-        let response: Response = serde_json::from_str(&s).unwrap();
+        let response: Response = serde_json::from_str(s).unwrap();
         let recovered1: Result<(), _> = response.result();
         let recovered2: Result<(), _> = response.clone().result();
         assert!(recovered1.is_ok());
@@ -192,7 +192,7 @@ mod tests {
             {"jsonrpc": "2.0", "error": {"code": -32601, "message": "Method not found"}, "id": "5"},
             {"jsonrpc": "2.0", "result": ["hello", 5], "id": "9"}
         ]"#;
-        let batch_response: Vec<Response> = serde_json::from_str(&s).unwrap();
+        let batch_response: Vec<Response> = serde_json::from_str(s).unwrap();
         assert_eq!(batch_response.len(), 5);
     }
 
