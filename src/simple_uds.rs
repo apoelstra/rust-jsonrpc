@@ -170,7 +170,7 @@ mod tests {
         }
         assert_eq!(recv_req, dummy_req_ser);
 
-        stream.write(&dummy_resp_ser).unwrap();
+        stream.write_all(&dummy_resp_ser).unwrap();
         stream.flush().unwrap();
         let recv_resp = client_thread.join().unwrap();
         assert_eq!(serde_json::to_vec(&recv_resp).unwrap(), dummy_resp_ser);
