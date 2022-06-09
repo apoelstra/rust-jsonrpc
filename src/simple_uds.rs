@@ -139,7 +139,7 @@ mod tests {
             method: "getinfo",
             params: &[],
             id: serde_json::Value::Number(111.into()),
-            jsonrpc: Some("2.0".into()),
+            jsonrpc: Some("2.0"),
         };
         let dummy_req_ser = serde_json::to_vec(&dummy_req).unwrap();
         let dummy_resp = Response {
