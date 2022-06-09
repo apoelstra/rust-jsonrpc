@@ -77,7 +77,7 @@ impl fmt::Display for Error {
 }
 
 impl error::Error for Error {
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             Error::Transport(ref e) => Some(&**e),
             Error::Json(ref e) => Some(e),
