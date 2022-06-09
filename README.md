@@ -2,19 +2,7 @@
 
 # Rust Version compatibility
 
-This library is compatible with Rust **1.29.0** or higher. However, because some
-dependencies have increased their Rust versions in minor/patch revisions, a bit
-of work is required for users who wish to use older versions of the compiler.
-In particular,
-
-For compatibility with older versions of rustc, use the following commands to
-pull your dependencies back down to unbroken versions:
-```
-cargo +1.29 update -p byteorder --precise "1.3.4"
-cargo +1.29 update --package 'serde_json' --precise '1.0.39'
-cargo +1.29 update --package 'serde' --precise '1.0.98'
-cargo +1.29 update --package 'serde_derive' --precise '1.0.98'
-```
+This library is compatible with Rust **1.41.1** or higher.
 
 # Rust JSONRPC Client
 
