@@ -399,7 +399,7 @@ mod tests {
             "https://127.0.0.1/rpc/test",
         ];
         for u in &valid_urls {
-            Builder::new().url(*u).expect(&format!("error for: {}", u));
+            Builder::new().url(*u).unwrap_or_else(|_| panic!("error for: {}", u));
         }
 
         let invalid_urls = [
