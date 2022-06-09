@@ -344,6 +344,12 @@ impl Builder {
     }
 }
 
+impl Default for Builder {
+    fn default() -> Self {
+        Builder::new()
+    }
+}
+
 impl crate::Client {
     /// Create a new JSON-RPC client using a bare-minimum HTTP transport.
     pub fn simple_http(
