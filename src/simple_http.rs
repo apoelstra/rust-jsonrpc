@@ -286,7 +286,7 @@ impl Builder {
         };
         // (2) split off path
         let (before_path, path) = {
-            if let Some(slash) = after_scheme.find("/") {
+            if let Some(slash) = after_scheme.find('/') {
                 (&after_scheme[0..slash], &after_scheme[slash..])
             } else {
                 (after_scheme, "/")
@@ -294,12 +294,12 @@ impl Builder {
         };
         // (3) split off auth part
         let after_auth = {
-            let mut split = before_path.splitn(2, "@");
+            let mut split = before_path.splitn(2, '@');
             let s = split.next().unwrap();
             split.next().unwrap_or(s)
         };
         // so now we should have <hostname>:<port> or just <hostname>
-        let mut split = after_auth.split(":");
+        let mut split = after_auth.split(':');
         let hostname = split.next().unwrap();
         let port: u16 = match split.next() {
             Some(port_str) => match port_str.parse() {
