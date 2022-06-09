@@ -132,7 +132,7 @@ mod tests {
     fn sanity_check_uds_transport() {
         let socket_path: path::PathBuf = format!("uds_scratch_{}.socket", process::id()).into();
         // Any leftover?
-        fs::remove_file(&socket_path).unwrap_or_else(|_| ());
+        fs::remove_file(&socket_path).unwrap_or(());
 
         let server = UnixListener::bind(&socket_path).unwrap();
         let dummy_req = Request {
