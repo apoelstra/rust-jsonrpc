@@ -128,7 +128,6 @@ impl Response {
 mod tests {
 
     use super::Response;
-    use serde_json;
     use serde_json::value::RawValue;
 
     #[test]
