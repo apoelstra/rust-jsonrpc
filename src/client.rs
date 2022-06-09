@@ -145,7 +145,7 @@ impl Client {
             return Err(Error::NonceMismatch);
         }
 
-        Ok(response.result()?)
+        response.result()
     }
 }
 
