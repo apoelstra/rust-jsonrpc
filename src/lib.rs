@@ -46,8 +46,8 @@ pub mod simple_tcp;
 pub mod simple_uds;
 
 // Re-export error type
-pub use error::Error;
-pub use client::{Client, Transport};
+pub use crate::error::Error;
+pub use crate::client::{Client, Transport};
 
 use serde_json::value::RawValue;
 

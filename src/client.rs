@@ -28,16 +28,16 @@ use serde_json;
 use serde_json::value::RawValue;
 
 use super::{Request, Response};
-use util::HashableValue;
-use error::Error;
+use crate::util::HashableValue;
+use crate::error::Error;
 
 
 /// An interface for a transport over which to use the JSONRPC protocol.
 pub trait Transport: Send + Sync + 'static {
     /// Send an RPC request over the transport.
-    fn send_request(&self, Request) -> Result<Response, Error>;
+    fn send_request(&self, _: Request) -> Result<Response, Error>;
     /// Send a batch of RPC requests over the transport.
-    fn send_batch(&self, &[Request]) -> Result<Vec<Response>, Error>;
+    fn send_batch(&self, _: &[Request]) -> Result<Vec<Response>, Error>;
     /// Format the target of this transport.
     /// I.e. the URL/socket/...
     fn fmt_target(&self, f: &mut fmt::Formatter) -> fmt::Result;
@@ -149,7 +149,7 @@ impl Client {
     }
 }
 
-impl fmt::Debug for ::Client {
+impl fmt::Debug for crate::Client {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "jsonrpc::Client(")?;
         self.transport.fmt_target(f)?;

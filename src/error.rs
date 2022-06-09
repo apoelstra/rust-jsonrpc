@@ -21,7 +21,7 @@ use std::{error, fmt};
 
 use serde_json;
 
-use Response;
+use crate::Response;
 
 /// A library error
 #[derive(Debug)]
