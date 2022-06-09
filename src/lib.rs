@@ -65,7 +65,7 @@ pub fn arg<T: serde::Serialize>(arg: T) -> Box<RawValue> {
     match try_arg(arg) {
         Ok(v) => v,
         Err(e) => RawValue::from_string(format!("<<ERROR SERIALIZING ARGUMENT: {}>>", e))
-            .unwrap_or(RawValue::from_string("<<ERROR SERIALIZING ARGUMENT>>".to_owned()).unwrap()),
+            .unwrap_or_else(|_| RawValue::from_string("<<ERROR SERIALIZING ARGUMENT>>".to_owned()).unwrap()),
     }
 }
 
