@@ -326,7 +326,7 @@ impl Builder {
         let mut auth = user.as_ref().to_owned();
         auth.push(':');
         if let Some(ref pass) = pass {
-            auth.push_str(&pass.as_ref()[..]);
+            auth.push_str(&pass.as_ref());
         }
         self.tp.basic_auth = Some(format!("Basic {}", &base64::encode(auth.as_bytes())));
         self
