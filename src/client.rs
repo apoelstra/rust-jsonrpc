@@ -72,8 +72,8 @@ impl Client {
     ) -> Request<'a> {
         let nonce = self.nonce.fetch_add(1, atomic::Ordering::Relaxed);
         Request {
-            method: method,
-            params: params,
+            method,
+            params,
             id: serde_json::Value::from(nonce),
             jsonrpc: Some("2.0"),
         }

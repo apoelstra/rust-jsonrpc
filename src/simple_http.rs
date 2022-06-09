@@ -149,7 +149,7 @@ impl Error {
     fn url<U: Into<String>>(url: U, reason: &'static str) -> Error {
         Error::InvalidUrl {
             url: url.into(),
-            reason: reason,
+            reason,
         }
     }
 }
