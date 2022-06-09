@@ -9,6 +9,7 @@ documentation = "https://docs.rs/jsonrpc/"
 description = "Rust support for the JSON-RPC 2.0 protocol"
 keywords = [ "protocol", "json", "http", "jsonrpc" ]
 readme	 = "README.md"
+edition = "2018"
 
 [lib]
 name = "jsonrpc"

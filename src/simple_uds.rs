@@ -6,8 +6,8 @@ use std::{error, fmt, io, path, time};
 use serde;
 use serde_json;
 
-use client::Transport;
-use {Request, Response};
+use crate::client::Transport;
+use crate::{Request, Response};
 
 /// Error that can occur while using the UDS transport.
 #[derive(Debug)]
@@ -54,11 +54,11 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-impl From<Error> for ::Error {
-    fn from(e: Error) -> ::Error {
+impl From<Error> for crate::error::Error {
+    fn from(e: Error) -> crate::error::Error {
         match e {
-            Error::Json(e) => ::Error::Json(e),
-            e => ::Error::Transport(Box::new(e)),
+            Error::Json(e) => crate::error::Error::Json(e),
+            e => crate::error::Error::Transport(Box::new(e)),
         }
     }
 }
@@ -101,11 +101,11 @@ impl UdsTransport {
 }
 
 impl Transport for UdsTransport {
-    fn send_request(&self, req: Request) -> Result<Response, ::Error> {
+    fn send_request(&self, req: Request) -> Result<Response, crate::error::Error> {
         Ok(self.request(req)?)
     }
 
-    fn send_batch(&self, reqs: &[Request]) -> Result<Vec<Response>, ::Error> {
+    fn send_batch(&self, reqs: &[Request]) -> Result<Vec<Response>, crate::error::Error> {
         Ok(self.request(reqs)?)
     }
 
@@ -125,7 +125,7 @@ mod tests {
     };
 
     use super::*;
-    use Client;
+    use crate::Client;
 
     // Test a dummy request / response over an UDS
     #[test]
