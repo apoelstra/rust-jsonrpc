@@ -112,14 +112,14 @@ impl Client {
             }
         }
         // Match responses to the requests.
-        let results = requests.into_iter().map(|r| {
+        let results = requests.iter().map(|r| {
             by_id.remove(&HashableValue(Cow::Borrowed(&r.id)))
         }).collect();
 
         // Since we're also just producing the first duplicate ID, we can also just produce the
         // first incorrect ID in case there are multiple.
-        if let Some((id, _)) = by_id.into_iter().nth(0) {
-            return Err(Error::WrongBatchResponseId(id.0.into_owned()));
+        if let Some(id) = by_id.keys().next() {
+            return Err(Error::WrongBatchResponseId((*id.0).clone()));
         }
 
         Ok(results)
