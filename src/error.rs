@@ -77,11 +77,19 @@ impl fmt::Display for Error {
 }
 
 impl error::Error for Error {
-    fn cause(&self) -> Option<&dyn error::Error> {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        use self::Error::*;
+
         match *self {
-            Error::Transport(ref e) => Some(&**e),
-            Error::Json(ref e) => Some(e),
-            _ => None,
+            Rpc(_)
+                | NonceMismatch
+                | VersionMismatch
+                | EmptyBatch
+                | WrongBatchResponseSize
+                | BatchDuplicateResponseId(_)
+                | WrongBatchResponseId(_) => None,
+            Transport(ref e) => Some(&**e),
+            Json(ref e) => Some(e),
         }
     }
 }

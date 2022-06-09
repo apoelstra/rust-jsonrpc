@@ -1,7 +1,7 @@
 //! This module implements a synchronous transport over a raw TcpListener. Note that
 //! it does not handle TCP over Unix Domain Sockets, see `simple_uds` for this.
 
-use std::{fmt, io, net, time};
+use std::{error, fmt, io, net, time};
 
 use serde;
 use serde_json;
@@ -30,6 +30,18 @@ impl fmt::Display for Error {
     }
 }
 
+impl error::Error for Error {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        use self::Error::*;
+
+        match *self {
+            SocketError(ref e) => Some(e),
+            Timeout => None,
+            Json(ref e) => Some(e),
+        }
+    }
+}
+
 impl From<io::Error> for Error {
     fn from(e: io::Error) -> Self {
         Error::SocketError(e)
@@ -50,8 +62,6 @@ impl From<Error> for crate::Error {
         }
     }
 }
-
-impl ::std::error::Error for Error {}
 
 /// Simple synchronous TCP transport.
 #[derive(Debug, Clone)]

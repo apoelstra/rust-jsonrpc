@@ -2,7 +2,7 @@
 //! round-tripper that works with the bitcoind RPC server. This can be used
 //! if minimal dependencies are a goal and synchronous communication is ok.
 
-use std::{fmt, io, net, thread};
+use std::{error, fmt, io, net, thread};
 use std::io::{BufRead, BufReader, Write};
 use std::net::{ToSocketAddrs, TcpStream};
 use std::time::{Instant, Duration};
@@ -154,8 +154,6 @@ impl Error {
     }
 }
 
-impl ::std::error::Error for Error {}
-
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match *self {
@@ -165,6 +163,21 @@ impl fmt::Display for Error {
             Error::HttpErrorCode(c) => write!(f, "unexpected HTTP code: {}", c),
             Error::Timeout => f.write_str("Didn't receive response data in time, timed out."),
             Error::Json(ref e) => write!(f, "JSON error: {}", e),
+        }
+    }
+}
+
+impl error::Error for Error {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        use self::Error::*;
+
+        match *self {
+            InvalidUrl{..}
+                | HttpParseError
+                | HttpErrorCode(_)
+                | Timeout => None,
+            SocketError(ref e) => Some(e),
+            Json(ref e) => Some(e),
         }
     }
 }
