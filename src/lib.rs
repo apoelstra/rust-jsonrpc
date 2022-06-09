@@ -171,12 +171,12 @@ mod tests {
         let s = r#"{"result":null,"error":null,"id":"test"}"#;
         let response: Response = serde_json::from_str(s).unwrap();
         let recovered1: Result<(), _> = response.result();
-        let recovered2: Result<(), _> = response.clone().result();
+        let recovered2: Result<(), _> = response.result();
         assert!(recovered1.is_ok());
         assert!(recovered2.is_ok());
 
         let recovered1: Result<String, _> = response.result();
-        let recovered2: Result<String, _> = response.clone().result();
+        let recovered2: Result<String, _> = response.result();
         assert!(recovered1.is_err());
         assert!(recovered2.is_err());
     }
