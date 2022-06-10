@@ -18,7 +18,7 @@ path = "src/lib.rs"
 [features]
 default = [ "simple_http", "simple_tcp" ]
 # A bare-minimum HTTP transport.
-simple_http = [ "base64-compat" ]
+simple_http = [ "base64" ]
 # Basic transport over a raw TcpListener
 simple_tcp = []
 # Basic transport over a raw UnixStream
@@ -30,5 +30,4 @@ serde = "1"
 serde_derive = "1"
 serde_json = { version = "1", features = [ "raw_value" ] }
 
-base64-compat = { version = "1.0.0", optional = true }
-
+base64 = { version = "0.13.0", optional = true }
