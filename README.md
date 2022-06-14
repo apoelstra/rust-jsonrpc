@@ -45,3 +45,10 @@ git config --local core.hooksPath githooks/
 ```
 
 Alternatively add symlinks in your `.git/hooks` directory to any of the githooks we provide.
+
+## Design goals
+
+This library was built with the primary purpose of talking to Bitcoin Core without the need for
+additional dependencies. This means we do not, and likely never will, support async. If you are
+writing an async application you might be interested in this [alternative JSONRPC
+client](https://github.com/thomaseizinger/rust-jsonrpc-client).
