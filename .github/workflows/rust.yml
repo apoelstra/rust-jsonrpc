@@ -12,7 +12,7 @@ jobs:
           - macOS-latest
           - windows-latest
         toolchain:
-          - 1.29.0
+          - 1.41.1
           - stable
     runs-on: ${{ matrix.os }}
     steps:
@@ -24,8 +24,21 @@ jobs:
           profile: minimal
           toolchain: ${{ matrix.toolchain }}
           override: true
-      - name: Pin serde dependencies if rust 1.29
-        if: matrix.toolchain == '1.29.0'
-        run: cargo generate-lockfile --verbose && cargo update -p byteorder --precise "1.3.4" && cargo update --package 'serde_json' --precise '1.0.39' && cargo update --package 'serde' --precise '1.0.98' && cargo update --package 'serde_derive' --precise '1.0.98'
       - name: Running tests on ${{ matrix.toolchain }}
         run: cargo test --verbose --all-features
+
+  Clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - run: rustup component add clippy
+      - uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --all-features -- -D warnings

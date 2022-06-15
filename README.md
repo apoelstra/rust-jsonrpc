@@ -2,48 +2,46 @@
 
 # Rust Version compatibility
 
-This library is compatible with Rust **1.29.0** or higher. However, because some
-dependencies have increased their Rust versions in minor/patch revisions, a bit
-of work is required for users who wish to use older versions of the compiler.
-In particular,
-
-For compatibility with older versions of rustc, use the following commands to
-pull your dependencies back down to unbroken versions:
-```
-cargo +1.29 update -p byteorder --precise "1.3.4"
-cargo +1.29 update --package 'serde_json' --precise '1.0.39'
-cargo +1.29 update --package 'serde' --precise '1.0.98'
-cargo +1.29 update --package 'serde_derive' --precise '1.0.98'
-```
+This library is compatible with Rust **1.41.1** or higher.
 
 # Rust JSONRPC Client
 
 Rudimentary support for sending JSONRPC 2.0 requests and receiving responses.
 
-To send a request which should retrieve the above structure, consider the following
-example code
+As an example, hit a local bitcoind JSON-RPC endpoint and call the `uptime` command.
 
 ```rust
-extern crate jsonrpc;
-extern crate serde;
-#[macro_use] extern crate serde_derive;
+use jsonrpc::Client;
+use jsonrpc::simple_http::{self, SimpleHttpTransport};
 
-#[derive(Deserialize)]
-struct MyStruct {
-    elem1: bool,
-    elem2: String,
-    elem3: Vec<usize>
+fn client(url: &str, user: &str, pass: &str) -> Result<Client, simple_http::Error> {
+    let t = SimpleHttpTransport::builder()
+        .url(url)?
+        .auth(user, Some(pass))
+        .build();
+
+    Ok(Client::with_transport(t))
 }
 
+// Demonstrate an example JSON-RCP call against bitcoind.
 fn main() {
-    // The two Nones are for user/pass for authentication
-    let rtt = jsonrpc::simple_rtt::Tripper::new();
-    let client = jsonrpc::client::Client::with_rtt(rtt, "example.org".to_owned(), None, None);
-    match client.do_rpc::<MyStruct>(&request) {
-        Ok(mystruct) => // Ok!
-        Err(e) => // Not so much.
-    }
-}
+    let client = client("localhost:18443", "user", "pass").expect("failed to create client");
+    let request = client.build_request("uptime", &[]);
+    let response = client.send_request(request).expect("send_request failed");
 
+    // For other commands this would be a struct matching the returned json.
+    let result: u64 = response.result().expect("response is an error, use check_error");
+    println!("bitcoind uptime: {}", result);
+}
 ```
 
+## Githooks
+
+To assist devs in catching errors _before_ running CI we provide some githooks. If you do not
+already have locally configured githooks you can use the ones in this repository by running, in the
+root directory of the repository:
+```
+git config --local core.hooksPath githooks/
+```
+
+Alternatively add symlinks in your `.git/hooks` directory to any of the githooks we provide.

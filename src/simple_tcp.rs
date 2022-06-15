@@ -1,13 +1,13 @@
 //! This module implements a synchronous transport over a raw TcpListener. Note that
 //! it does not handle TCP over Unix Domain Sockets, see `simple_uds` for this.
 
-use std::{fmt, io, net, time};
+use std::{error, fmt, io, net, time};
 
 use serde;
 use serde_json;
 
-use client::Transport;
-use {Request, Response};
+use crate::client::Transport;
+use crate::{Request, Response};
 
 /// Error that can occur while using the TCP transport.
 #[derive(Debug)]
@@ -30,6 +30,18 @@ impl fmt::Display for Error {
     }
 }
 
+impl error::Error for Error {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        use self::Error::*;
+
+        match *self {
+            SocketError(ref e) => Some(e),
+            Timeout => None,
+            Json(ref e) => Some(e),
+        }
+    }
+}
+
 impl From<io::Error> for Error {
     fn from(e: io::Error) -> Self {
         Error::SocketError(e)
@@ -42,16 +54,14 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-impl From<Error> for ::Error {
-    fn from(e: Error) -> ::Error {
+impl From<Error> for crate::Error {
+    fn from(e: Error) -> crate::Error {
         match e {
-            Error::Json(e) => ::Error::Json(e),
-            e => ::Error::Transport(Box::new(e)),
+            Error::Json(e) => crate::Error::Json(e),
+            e => crate::Error::Transport(Box::new(e)),
         }
     }
 }
-
-impl ::std::error::Error for Error {}
 
 /// Simple synchronous TCP transport.
 #[derive(Debug, Clone)]
@@ -91,11 +101,11 @@ impl TcpTransport {
 }
 
 impl Transport for TcpTransport {
-    fn send_request(&self, req: Request) -> Result<Response, ::Error> {
+    fn send_request(&self, req: Request) -> Result<Response, crate::Error> {
         Ok(self.request(req)?)
     }
 
-    fn send_batch(&self, reqs: &[Request]) -> Result<Vec<Response>, ::Error> {
+    fn send_batch(&self, reqs: &[Request]) -> Result<Vec<Response>, crate::Error> {
         Ok(self.request(reqs)?)
     }
 
@@ -112,7 +122,7 @@ mod tests {
     };
 
     use super::*;
-    use Client;
+    use crate::Client;
 
     // Test a dummy request / response over a raw TCP transport
     #[test]
@@ -125,7 +135,7 @@ mod tests {
             method: "arandommethod",
             params: &[],
             id: serde_json::Value::Number(4242242.into()),
-            jsonrpc: Some("2.0".into()),
+            jsonrpc: Some("2.0"),
         };
         let dummy_req_ser = serde_json::to_vec(&dummy_req).unwrap();
         let dummy_resp = Response {
@@ -155,7 +165,7 @@ mod tests {
         }
         assert_eq!(recv_req, dummy_req_ser);
 
-        stream.write(&dummy_resp_ser).unwrap();
+        stream.write_all(&dummy_resp_ser).unwrap();
         stream.flush().unwrap();
         let recv_resp = client_thread.join().unwrap();
         assert_eq!(serde_json::to_vec(&recv_resp).unwrap(), dummy_resp_ser);

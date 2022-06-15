@@ -46,8 +46,8 @@ pub mod simple_tcp;
 pub mod simple_uds;
 
 // Re-export error type
-pub use error::Error;
-pub use client::{Client, Transport};
+pub use crate::error::Error;
+pub use crate::client::{Client, Transport};
 
 use serde_json::value::RawValue;
 
@@ -65,7 +65,7 @@ pub fn arg<T: serde::Serialize>(arg: T) -> Box<RawValue> {
     match try_arg(arg) {
         Ok(v) => v,
         Err(e) => RawValue::from_string(format!("<<ERROR SERIALIZING ARGUMENT: {}>>", e))
-            .unwrap_or(RawValue::from_string("<<ERROR SERIALIZING ARGUMENT>>".to_owned()).unwrap()),
+            .unwrap_or_else(|_| RawValue::from_string("<<ERROR SERIALIZING ARGUMENT>>".to_owned()).unwrap()),
     }
 }
 
@@ -128,7 +128,6 @@ impl Response {
 mod tests {
 
     use super::Response;
-    use serde_json;
     use serde_json::value::RawValue;
 
     #[test]
@@ -170,14 +169,14 @@ mod tests {
     #[test]
     fn null_result() {
         let s = r#"{"result":null,"error":null,"id":"test"}"#;
-        let response: Response = serde_json::from_str(&s).unwrap();
+        let response: Response = serde_json::from_str(s).unwrap();
         let recovered1: Result<(), _> = response.result();
-        let recovered2: Result<(), _> = response.clone().result();
+        let recovered2: Result<(), _> = response.result();
         assert!(recovered1.is_ok());
         assert!(recovered2.is_ok());
 
         let recovered1: Result<String, _> = response.result();
-        let recovered2: Result<String, _> = response.clone().result();
+        let recovered2: Result<String, _> = response.result();
         assert!(recovered1.is_err());
         assert!(recovered2.is_err());
     }
@@ -192,7 +191,7 @@ mod tests {
             {"jsonrpc": "2.0", "error": {"code": -32601, "message": "Method not found"}, "id": "5"},
             {"jsonrpc": "2.0", "result": ["hello", 5], "id": "9"}
         ]"#;
-        let batch_response: Vec<Response> = serde_json::from_str(&s).unwrap();
+        let batch_response: Vec<Response> = serde_json::from_str(s).unwrap();
         assert_eq!(batch_response.len(), 5);
     }
 

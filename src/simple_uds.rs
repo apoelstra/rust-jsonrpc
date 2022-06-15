@@ -1,13 +1,13 @@
 //! This module implements a synchronous transport over a raw TcpListener.
 
 use std::os::unix::net::UnixStream;
-use std::{fmt, io, path, time};
+use std::{error, fmt, io, path, time};
 
 use serde;
 use serde_json;
 
-use client::Transport;
-use {Request, Response};
+use crate::client::Transport;
+use crate::{Request, Response};
 
 /// Error that can occur while using the UDS transport.
 #[derive(Debug)]
@@ -30,6 +30,18 @@ impl fmt::Display for Error {
     }
 }
 
+impl error::Error for Error {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        use self::Error::*;
+
+        match *self {
+            SocketError(ref e) => Some(e),
+            Timeout => None,
+            Json(ref e) => Some(e),
+        }
+    }
+}
+
 impl From<io::Error> for Error {
     fn from(e: io::Error) -> Self {
         Error::SocketError(e)
@@ -42,16 +54,14 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-impl From<Error> for ::Error {
-    fn from(e: Error) -> ::Error {
+impl From<Error> for crate::error::Error {
+    fn from(e: Error) -> crate::error::Error {
         match e {
-            Error::Json(e) => ::Error::Json(e),
-            e => ::Error::Transport(Box::new(e)),
+            Error::Json(e) => crate::error::Error::Json(e),
+            e => crate::error::Error::Transport(Box::new(e)),
         }
     }
 }
-
-impl ::std::error::Error for Error {}
 
 /// Simple synchronous UDS transport.
 #[derive(Debug, Clone)]
@@ -91,11 +101,11 @@ impl UdsTransport {
 }
 
 impl Transport for UdsTransport {
-    fn send_request(&self, req: Request) -> Result<Response, ::Error> {
+    fn send_request(&self, req: Request) -> Result<Response, crate::error::Error> {
         Ok(self.request(req)?)
     }
 
-    fn send_batch(&self, reqs: &[Request]) -> Result<Vec<Response>, ::Error> {
+    fn send_batch(&self, reqs: &[Request]) -> Result<Vec<Response>, crate::error::Error> {
         Ok(self.request(reqs)?)
     }
 
@@ -115,21 +125,21 @@ mod tests {
     };
 
     use super::*;
-    use Client;
+    use crate::Client;
 
     // Test a dummy request / response over an UDS
     #[test]
     fn sanity_check_uds_transport() {
         let socket_path: path::PathBuf = format!("uds_scratch_{}.socket", process::id()).into();
         // Any leftover?
-        fs::remove_file(&socket_path).unwrap_or_else(|_| ());
+        fs::remove_file(&socket_path).unwrap_or(());
 
         let server = UnixListener::bind(&socket_path).unwrap();
         let dummy_req = Request {
             method: "getinfo",
             params: &[],
             id: serde_json::Value::Number(111.into()),
-            jsonrpc: Some("2.0".into()),
+            jsonrpc: Some("2.0"),
         };
         let dummy_req_ser = serde_json::to_vec(&dummy_req).unwrap();
         let dummy_resp = Response {
@@ -160,7 +170,7 @@ mod tests {
         }
         assert_eq!(recv_req, dummy_req_ser);
 
-        stream.write(&dummy_resp_ser).unwrap();
+        stream.write_all(&dummy_resp_ser).unwrap();
         stream.flush().unwrap();
         let recv_resp = client_thread.join().unwrap();
         assert_eq!(serde_json::to_vec(&recv_resp).unwrap(), dummy_resp_ser);

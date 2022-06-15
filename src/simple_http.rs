@@ -2,7 +2,7 @@
 //! round-tripper that works with the bitcoind RPC server. This can be used
 //! if minimal dependencies are a goal and synchronous communication is ok.
 
-use std::{fmt, io, net, thread};
+use std::{error, fmt, io, net, thread};
 use std::io::{BufRead, BufReader, Write};
 use std::net::{ToSocketAddrs, TcpStream};
 use std::time::{Instant, Duration};
@@ -11,8 +11,8 @@ use base64;
 use serde;
 use serde_json;
 
-use ::client::Transport;
-use ::{Request, Response};
+use crate::client::Transport;
+use crate::{Request, Response};
 
 /// The default TCP port to use for connections.
 /// Set to 8332, the default RPC port for bitcoind.
@@ -149,12 +149,10 @@ impl Error {
     fn url<U: Into<String>>(url: U, reason: &'static str) -> Error {
         Error::InvalidUrl {
             url: url.into(),
-            reason: reason,
+            reason,
         }
     }
 }
-
-impl ::std::error::Error for Error {}
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
@@ -165,6 +163,21 @@ impl fmt::Display for Error {
             Error::HttpErrorCode(c) => write!(f, "unexpected HTTP code: {}", c),
             Error::Timeout => f.write_str("Didn't receive response data in time, timed out."),
             Error::Json(ref e) => write!(f, "JSON error: {}", e),
+        }
+    }
+}
+
+impl error::Error for Error {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        use self::Error::*;
+
+        match *self {
+            InvalidUrl{..}
+                | HttpParseError
+                | HttpErrorCode(_)
+                | Timeout => None,
+            SocketError(ref e) => Some(e),
+            Json(ref e) => Some(e),
         }
     }
 }
@@ -181,11 +194,11 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-impl From<Error> for ::Error {
-    fn from(e: Error) -> ::Error {
+impl From<Error> for crate::Error {
+    fn from(e: Error) -> crate::Error {
         match e {
-            Error::Json(e) => ::Error::Json(e),
-            e => ::Error::Transport(Box::new(e))
+            Error::Json(e) => crate::Error::Json(e),
+            e => crate::Error::Transport(Box::new(e))
         }
     }
 }
@@ -208,11 +221,11 @@ fn get_line<R: BufRead>(reader: &mut R, deadline: Instant) -> Result<String, Err
 }
 
 impl Transport for SimpleHttpTransport {
-    fn send_request(&self, req: Request) -> Result<Response, ::Error> {
+    fn send_request(&self, req: Request) -> Result<Response, crate::Error> {
         Ok(self.request(req)?)
     }
 
-    fn send_batch(&self, reqs: &[Request]) -> Result<Vec<Response>, ::Error> {
+    fn send_batch(&self, reqs: &[Request]) -> Result<Vec<Response>, crate::Error> {
         Ok(self.request(reqs)?)
     }
 
@@ -273,7 +286,7 @@ impl Builder {
         };
         // (2) split off path
         let (before_path, path) = {
-            if let Some(slash) = after_scheme.find("/") {
+            if let Some(slash) = after_scheme.find('/') {
                 (&after_scheme[0..slash], &after_scheme[slash..])
             } else {
                 (after_scheme, "/")
@@ -281,12 +294,12 @@ impl Builder {
         };
         // (3) split off auth part
         let after_auth = {
-            let mut split = before_path.splitn(2, "@");
+            let mut split = before_path.splitn(2, '@');
             let s = split.next().unwrap();
             split.next().unwrap_or(s)
         };
         // so now we should have <hostname>:<port> or just <hostname>
-        let mut split = after_auth.split(":");
+        let mut split = after_auth.split(':');
         let hostname = split.next().unwrap();
         let port: u16 = match split.next() {
             Some(port_str) => match port_str.parse() {
@@ -313,7 +326,7 @@ impl Builder {
         let mut auth = user.as_ref().to_owned();
         auth.push(':');
         if let Some(ref pass) = pass {
-            auth.push_str(&pass.as_ref()[..]);
+            auth.push_str(pass.as_ref());
         }
         self.tp.basic_auth = Some(format!("Basic {}", &base64::encode(auth.as_bytes())));
         self
@@ -331,18 +344,24 @@ impl Builder {
     }
 }
 
-impl ::Client {
+impl Default for Builder {
+    fn default() -> Self {
+        Builder::new()
+    }
+}
+
+impl crate::Client {
     /// Create a new JSON-RPC client using a bare-minimum HTTP transport.
     pub fn simple_http(
         url: &str,
         user: Option<String>,
         pass: Option<String>,
-    ) -> Result<::Client, Error> {
-        let mut builder = Builder::new().url(&url)?;
+    ) -> Result<crate::Client, Error> {
+        let mut builder = Builder::new().url(url)?;
         if let Some(user) = user {
             builder = builder.auth(user, pass);
         }
-        Ok(::Client::with_transport(builder.build()))
+        Ok(crate::Client::with_transport(builder.build()))
     }
 }
 
@@ -350,7 +369,7 @@ impl ::Client {
 mod tests {
     use std::net;
 
-    use ::Client;
+    use crate::Client;
     use super::*;
 
     #[test]
@@ -386,7 +405,7 @@ mod tests {
             "https://127.0.0.1/rpc/test",
         ];
         for u in &valid_urls {
-            Builder::new().url(*u).expect(&format!("error for: {}", u));
+            Builder::new().url(*u).unwrap_or_else(|_| panic!("error for: {}", u));
         }
 
         let invalid_urls = [

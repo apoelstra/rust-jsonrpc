@@ -21,7 +21,7 @@ use std::{error, fmt};
 
 use serde_json;
 
-use Response;
+use crate::Response;
 
 /// A library error
 #[derive(Debug)]
@@ -77,11 +77,19 @@ impl fmt::Display for Error {
 }
 
 impl error::Error for Error {
-    fn cause(&self) -> Option<&error::Error> {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        use self::Error::*;
+
         match *self {
-            Error::Transport(ref e) => Some(&**e),
-            Error::Json(ref e) => Some(e),
-            _ => None,
+            Rpc(_)
+                | NonceMismatch
+                | VersionMismatch
+                | EmptyBatch
+                | WrongBatchResponseSize
+                | BatchDuplicateResponseId(_)
+                | WrongBatchResponseId(_) => None,
+            Transport(ref e) => Some(&**e),
+            Json(ref e) => Some(e),
         }
     }
 }
@@ -140,27 +148,27 @@ pub fn standard_error(code: StandardError, data: Option<Box<serde_json::value::R
         StandardError::ParseError => RpcError {
             code: -32700,
             message: "Parse error".to_string(),
-            data: data,
+            data,
         },
         StandardError::InvalidRequest => RpcError {
             code: -32600,
             message: "Invalid Request".to_string(),
-            data: data,
+            data,
         },
         StandardError::MethodNotFound => RpcError {
             code: -32601,
             message: "Method not found".to_string(),
-            data: data,
+            data,
         },
         StandardError::InvalidParams => RpcError {
             code: -32602,
             message: "Invalid params".to_string(),
-            data: data,
+            data,
         },
         StandardError::InternalError => RpcError {
             code: -32603,
             message: "Internal error".to_string(),
-            data: data,
+            data,
         },
     }
 }
@@ -176,13 +184,13 @@ pub fn result_to_response(
                 serde_json::to_string(&data).unwrap()
             ).unwrap()),
             error: None,
-            id: id,
+            id,
             jsonrpc: Some(String::from("2.0")),
         },
         Err(err) => Response {
             result: None,
             error: Some(err),
-            id: id,
+            id,
             jsonrpc: Some(String::from("2.0")),
         },
     }
