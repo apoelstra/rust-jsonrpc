@@ -20,6 +20,7 @@
 use std::{error, fmt};
 
 use serde_json;
+use serde::{Deserialize, Serialize};
 
 use crate::Response;
 

@@ -24,9 +24,9 @@
 #![deny(unused_mut)]
 #![warn(missing_docs)]
 
+use serde::{Deserialize, Serialize};
+
 extern crate serde;
-#[macro_use]
-extern crate serde_derive;
 pub extern crate serde_json;
 
 #[cfg(feature = "base64-compat")]
@@ -126,8 +126,8 @@ impl Response {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
 
-    use super::Response;
     use serde_json::value::RawValue;
 
     #[test]
