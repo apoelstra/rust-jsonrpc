@@ -298,22 +298,19 @@ impl Builder {
             let s = split.next().unwrap();
             split.next().unwrap_or(s)
         };
-        // so now we should have <hostname>:<port> or just <hostname>
-        let mut split = after_auth.split(':');
-        let hostname = split.next().unwrap();
-        let port: u16 = match split.next() {
-            Some(port_str) => match port_str.parse() {
-                Ok(port) => port,
-                Err(_) => return Err(Error::url(url, "invalid port")),
-            },
-            None => fallback_port,
-        };
-        // make sure we don't have a second colon in this part
-        if split.next().is_some() {
-            return Err(Error::url(url, "unexpected extra colon"));
-        }
 
-        self.tp.addr = match (hostname, port).to_socket_addrs()?.next() {
+        // (4) Parse into socket address.
+        // At this point we either have <host_name> or <host_name_>:<port>
+        // `std::net::ToSocketAddrs` requires `&str` to have <host_name_>:<port> format.
+        let mut addr = match after_auth.to_socket_addrs() {
+            Ok(addr) => addr,
+            Err(_) => {
+                // Invalid socket address. Try to add port.
+                format!("{}:{}", after_auth, fallback_port).to_socket_addrs()?
+            }
+        };
+
+        self.tp.addr = match addr.next() {
             Some(a) => a,
             None => return Err(Error::url(url, "invalid hostname: error extracting socket address")),
         };
@@ -403,6 +400,8 @@ mod tests {
             "http://127.0.0.1:8080/",
             "http://127.0.0.1:8080/rpc/test",
             "https://127.0.0.1/rpc/test",
+            "http://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:8300",
+            "http://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]",
         ];
         for u in &valid_urls {
             Builder::new().url(*u).unwrap_or_else(|_| panic!("error for: {}", u));
