@@ -299,11 +299,13 @@ impl Builder {
             split.next().unwrap_or(s)
         };
 
-        // Needs to be of format <host_name>:<port>
+        // (4) Parse into socket address.
+        // At this point we either have <host_name> or <host_name_>:<port>
+        // `std::net::ToSocketAddrs` requires `&str` to have <host_name_>:<port> format.
         let mut addr = match after_auth.to_socket_addrs() {
             Ok(addr) => addr,
             Err(_) => {
-                // Try to add fallback port
+                // Invalid socket address. Try to add port.
                 format!("{}:{}", after_auth, fallback_port).to_socket_addrs()?
             }
         };
@@ -410,7 +412,6 @@ mod tests {
             "httpx://127.0.0.1:8080/",
             "ftp://127.0.0.1:8080/rpc/test",
             "http://127.0.0./rpc/test",
-            "http://[2001:0db8:85a:0000:8a2e:0370:7334]",
             // NB somehow, Rust's IpAddr accepts "127.0.0" and adds the extra 0..
         ];
         for u in &invalid_urls {
