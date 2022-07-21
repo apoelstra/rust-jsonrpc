@@ -17,3 +17,4 @@ do
     cargo test --verbose --features="$feature"
 done
 
+exit 0
