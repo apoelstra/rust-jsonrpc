@@ -45,18 +45,18 @@ impl<'a> Hash for HashableValue<'a> {
                 } else {
                     n.to_string().hash(state);
                 }
-            },
+            }
             Value::String(ref s) => {
                 "string".hash(state);
                 s.hash(state);
-            },
+            }
             Value::Array(ref v) => {
                 "array".hash(state);
                 v.len().hash(state);
                 for obj in v {
                     HashableValue(Cow::Borrowed(obj)).hash(state);
                 }
-            },
+            }
             Value::Object(ref m) => {
                 "object".hash(state);
                 m.len().hash(state);
@@ -82,8 +82,10 @@ mod tests {
         let val = HashableValue(Cow::Owned(Value::from_str("null").unwrap()));
         let t = HashableValue(Cow::Owned(Value::from_str("true").unwrap()));
         let f = HashableValue(Cow::Owned(Value::from_str("false").unwrap()));
-        let ns = HashableValue(Cow::Owned(Value::from_str("[0, -0, 123.4567, -100000000]").unwrap()));
-        let m = HashableValue(Cow::Owned(Value::from_str("{ \"field\": 0, \"field\": -0 }").unwrap()));
+        let ns =
+            HashableValue(Cow::Owned(Value::from_str("[0, -0, 123.4567, -100000000]").unwrap()));
+        let m =
+            HashableValue(Cow::Owned(Value::from_str("{ \"field\": 0, \"field\": -0 }").unwrap()));
 
         let mut coll = HashSet::new();
 
@@ -109,5 +111,3 @@ mod tests {
         assert!(coll.contains(&m));
     }
 }
-
-
