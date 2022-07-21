@@ -1,3 +1,13 @@
+# 0.13.0 - 2022-17-21 "Edition 2018 Release"
+
+This release increases the MSRV to 1.41.1, bringing with it a bunch of new language features.
+
+Some highlights:
+
+- The MSRV bump [#58](https://github.com/apoelstra/rust-jsonrpc/pull/58)
+- Add IPv6 support [#63](https://github.com/apoelstra/rust-jsonrpc/pull/63)
+- Remove `serder_derive` dependency [#61](https://github.com/apoelstra/rust-jsonrpc/pull/61)
+
 # 0.12.1 - 2022-01-20
 
 ## Features
