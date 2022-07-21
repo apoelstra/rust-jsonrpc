@@ -25,6 +25,8 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           override: true
       - name: Running tests on ${{ matrix.toolchain }}
+        env:
+          DO_FEATURE_MATRIX: true
         run: cargo test --verbose --all-features
 
   Clippy:
