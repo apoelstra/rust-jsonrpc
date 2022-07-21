@@ -120,8 +120,7 @@ mod tests {
         fs,
         io::{Read, Write},
         os::unix::net::UnixListener,
-        process,
-        thread,
+        process, thread,
     };
 
     use super::*;

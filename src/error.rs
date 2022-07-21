@@ -19,8 +19,8 @@
 
 use std::{error, fmt};
 
-use serde_json;
 use serde::{Deserialize, Serialize};
+use serde_json;
 
 use crate::Response;
 
@@ -83,12 +83,12 @@ impl error::Error for Error {
 
         match *self {
             Rpc(_)
-                | NonceMismatch
-                | VersionMismatch
-                | EmptyBatch
-                | WrongBatchResponseSize
-                | BatchDuplicateResponseId(_)
-                | WrongBatchResponseId(_) => None,
+            | NonceMismatch
+            | VersionMismatch
+            | EmptyBatch
+            | WrongBatchResponseSize
+            | BatchDuplicateResponseId(_)
+            | WrongBatchResponseId(_) => None,
             Transport(ref e) => Some(&**e),
             Json(ref e) => Some(e),
         }
@@ -144,7 +144,10 @@ pub struct RpcError {
 }
 
 /// Create a standard error responses
-pub fn standard_error(code: StandardError, data: Option<Box<serde_json::value::RawValue>>) -> RpcError {
+pub fn standard_error(
+    code: StandardError,
+    data: Option<Box<serde_json::value::RawValue>>,
+) -> RpcError {
     match code {
         StandardError::ParseError => RpcError {
             code: -32700,
@@ -181,9 +184,10 @@ pub fn result_to_response(
 ) -> Response {
     match result {
         Ok(data) => Response {
-            result: Some(serde_json::value::RawValue::from_string(
-                serde_json::to_string(&data).unwrap()
-            ).unwrap()),
+            result: Some(
+                serde_json::value::RawValue::from_string(serde_json::to_string(&data).unwrap())
+                    .unwrap(),
+            ),
             error: None,
             id,
             jsonrpc: Some(String::from("2.0")),

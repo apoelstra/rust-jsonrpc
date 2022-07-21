@@ -2,10 +2,10 @@
 //! round-tripper that works with the bitcoind RPC server. This can be used
 //! if minimal dependencies are a goal and synchronous communication is ok.
 
-use std::{error, fmt, io, net, thread};
 use std::io::{BufRead, BufReader, Write};
-use std::net::{ToSocketAddrs, TcpStream};
-use std::time::{Instant, Duration};
+use std::net::{TcpStream, ToSocketAddrs};
+use std::time::{Duration, Instant};
+use std::{error, fmt, io, net, thread};
 
 use base64;
 use serde;
@@ -32,7 +32,10 @@ pub struct SimpleHttpTransport {
 impl Default for SimpleHttpTransport {
     fn default() -> Self {
         SimpleHttpTransport {
-            addr: net::SocketAddr::new(net::IpAddr::V4(net::Ipv4Addr::new(127, 0, 0, 1)), DEFAULT_PORT),
+            addr: net::SocketAddr::new(
+                net::IpAddr::V4(net::Ipv4Addr::new(127, 0, 0, 1)),
+                DEFAULT_PORT,
+            ),
             path: "/".to_owned(),
             timeout: Duration::from_secs(15),
             basic_auth: None,
@@ -52,7 +55,8 @@ impl SimpleHttpTransport {
     }
 
     fn request<R>(&self, req: impl serde::Serialize) -> Result<R, Error>
-        where R: for<'a> serde::de::Deserialize<'a>
+    where
+        R: for<'a> serde::de::Deserialize<'a>,
     {
         // Open connection
         let request_deadline = Instant::now() + self.timeout;
@@ -157,7 +161,10 @@ impl Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match *self {
-            Error::InvalidUrl{ref url, ref reason} => write!(f, "invalid URL '{}': {}", url, reason),
+            Error::InvalidUrl {
+                ref url,
+                ref reason,
+            } => write!(f, "invalid URL '{}': {}", url, reason),
             Error::SocketError(ref e) => write!(f, "Couldn't connect to host: {}", e),
             Error::HttpParseError => f.write_str("Couldn't parse response header."),
             Error::HttpErrorCode(c) => write!(f, "unexpected HTTP code: {}", c),
@@ -172,10 +179,12 @@ impl error::Error for Error {
         use self::Error::*;
 
         match *self {
-            InvalidUrl{..}
-                | HttpParseError
-                | HttpErrorCode(_)
-                | Timeout => None,
+            InvalidUrl {
+                ..
+            }
+            | HttpParseError
+            | HttpErrorCode(_)
+            | Timeout => None,
             SocketError(ref e) => Some(e),
             Json(ref e) => Some(e),
         }
@@ -198,7 +207,7 @@ impl From<Error> for crate::Error {
     fn from(e: Error) -> crate::Error {
         match e {
             Error::Json(e) => crate::Error::Json(e),
-            e => crate::Error::Transport(Box::new(e))
+            e => crate::Error::Transport(Box::new(e)),
         }
     }
 }
@@ -239,7 +248,6 @@ impl Transport for SimpleHttpTransport {
 pub struct Builder {
     tp: SimpleHttpTransport,
 }
-
 
 impl Builder {
     /// Construct new `Builder` with default configuration
@@ -312,7 +320,9 @@ impl Builder {
 
         self.tp.addr = match addr.next() {
             Some(a) => a,
-            None => return Err(Error::url(url, "invalid hostname: error extracting socket address")),
+            None => {
+                return Err(Error::url(url, "invalid hostname: error extracting socket address"))
+            }
         };
         self.tp.path = path.to_owned();
         Ok(self)
@@ -366,8 +376,8 @@ impl crate::Client {
 mod tests {
     use std::net;
 
-    use crate::Client;
     use super::*;
+    use crate::Client;
 
     #[test]
     fn test_urls() {
@@ -390,7 +400,8 @@ mod tests {
         let addr: net::SocketAddr = ("localhost", 443).to_socket_addrs().unwrap().next().unwrap();
         let tp = Builder::new().url("https://localhost/").unwrap().build();
         assert_eq!(tp.addr, addr);
-        let addr: net::SocketAddr = ("localhost", super::DEFAULT_PORT).to_socket_addrs().unwrap().next().unwrap();
+        let addr: net::SocketAddr =
+            ("localhost", super::DEFAULT_PORT).to_socket_addrs().unwrap().next().unwrap();
         let tp = Builder::new().url("localhost").unwrap().build();
         assert_eq!(tp.addr, addr);
 
@@ -426,7 +437,8 @@ mod tests {
     fn construct() {
         let tp = Builder::new()
             .timeout(Duration::from_millis(100))
-            .url("localhost:22").unwrap()
+            .url("localhost:22")
+            .unwrap()
             .auth("user", None)
             .build();
         let _ = Client::with_transport(tp);
@@ -434,4 +446,3 @@ mod tests {
         let _ = Client::simple_http("localhost:22", None, None).unwrap();
     }
 }
-

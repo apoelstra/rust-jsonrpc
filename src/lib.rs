@@ -46,8 +46,8 @@ pub mod simple_tcp;
 pub mod simple_uds;
 
 // Re-export error type
-pub use crate::error::Error;
 pub use crate::client::{Client, Transport};
+pub use crate::error::Error;
 
 use serde_json::value::RawValue;
 
@@ -65,7 +65,9 @@ pub fn arg<T: serde::Serialize>(arg: T) -> Box<RawValue> {
     match try_arg(arg) {
         Ok(v) => v,
         Err(e) => RawValue::from_string(format!("<<ERROR SERIALIZING ARGUMENT: {}>>", e))
-            .unwrap_or_else(|_| RawValue::from_string("<<ERROR SERIALIZING ARGUMENT>>".to_owned()).unwrap()),
+            .unwrap_or_else(|_| {
+                RawValue::from_string("<<ERROR SERIALIZING ARGUMENT>>".to_owned()).unwrap()
+            }),
     }
 }
 
@@ -203,7 +205,7 @@ mod tests {
                 let arg = super::arg(val1.clone());
                 let val2: $t = serde_json::from_str(arg.get()).expect(stringify!($val));
                 assert_eq!(val1, val2, "failed test for {}", stringify!($val));
-            }}
+            }};
         }
 
         test_arg!(true, bool);
@@ -217,6 +219,11 @@ mod tests {
         struct Test {
             v: String,
         }
-        test_arg!(Test { v: String::from("test"), }, Test);
+        test_arg!(
+            Test {
+                v: String::from("test"),
+            },
+            Test
+        );
     }
 }
