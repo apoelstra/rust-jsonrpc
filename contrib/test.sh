@@ -2,12 +2,6 @@
 
 FEATURES=""
 
-# Use toolchain if explicitly specified
-if [ -n "$TOOLCHAIN" ]
-then
-    alias cargo="cargo +$TOOLCHAIN"
-fi
-
 # Test without any features first
 cargo test --verbose
 
