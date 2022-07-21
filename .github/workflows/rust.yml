@@ -30,7 +30,7 @@ jobs:
         run: cargo test --verbose --all-features
 
   Nightly:
-    name: Nightly - Docs
+    name: Nightly - Docs + Fmt
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Crate
@@ -44,6 +44,10 @@ jobs:
       - name: Building docs
         env:
           DO_DOCS: true
+        run: ./contrib/test.sh
+      - name: Run the formatter
+        env:
+          DO_FMT: true
         run: ./contrib/test.sh
 
   Clippy:
