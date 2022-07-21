@@ -96,7 +96,7 @@ impl error::Error for Error {
 }
 
 /// Standard error responses, as described at at
-/// http://www.jsonrpc.org/specification#error_object
+/// <http://www.jsonrpc.org/specification#error_object>
 ///
 /// # Documentation Copyright
 /// Copyright (C) 2007-2010 by the JSON-RPC Working Group
