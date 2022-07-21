@@ -64,7 +64,7 @@ impl Client {
     /// Builds a request.
     ///
     /// To construct the arguments, one can use one of the shorthand methods
-    /// [jsonrpc::arg] or [jsonrpc::try_arg].
+    /// [`crate::arg`] or [`crate::try_arg`].
     pub fn build_request<'a>(
         &self,
         method: &'a str,
@@ -88,7 +88,7 @@ impl Client {
     /// for the request at the corresponding index.  If no response was provided, it's [None].
     ///
     /// Note that the requests need to have valid IDs, so it is advised to create the requests
-    /// with [build_request].
+    /// with [`Client::build_request`].
     pub fn send_batch(&self, requests: &[Request]) -> Result<Vec<Option<Response>>, Error> {
         if requests.is_empty() {
             return Err(Error::EmptyBatch);
@@ -128,7 +128,7 @@ impl Client {
     /// Make a request and deserialize the response.
     ///
     /// To construct the arguments, one can use one of the shorthand methods
-    /// [jsonrpc::arg] or [jsonrpc::try_arg].
+    /// [`crate::arg`] or [`crate::try_arg`].
     pub fn call<R: for<'a> serde::de::Deserialize<'a>>(
         &self,
         method: &str,
