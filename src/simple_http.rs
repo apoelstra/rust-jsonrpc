@@ -111,7 +111,7 @@ impl SimpleHttpTransport {
 
         // Even if it's != 200, we parse the response as we may get a JSONRPC error instead
         // of the less meaningful HTTP error code.
-        let resp_body = get_line(&mut reader, request_deadline)?;
+        let resp_body = get_lines(&mut reader)?;
         match serde_json::from_str(&resp_body) {
             Ok(s) => Ok(s),
             Err(e) => {
@@ -227,6 +227,23 @@ fn get_line<R: BufRead>(reader: &mut R, deadline: Instant) -> Result<String, Err
         }
     }
     Err(Error::Timeout)
+}
+
+/// Read all lines from a buffered reader.
+fn get_lines<R: BufRead>(reader: &mut R) -> Result<String, Error> {
+    let mut body: String = String::new();
+
+    for line in reader.lines() {
+        match line {
+            Ok(l) => body.push_str(&l),
+            // io error occurred, abort
+            Err(e) => return Err(Error::SocketError(e)),
+        }
+    }
+    // remove whitespace
+    body.retain(|c| !c.is_whitespace());
+
+    Ok(body)
 }
 
 impl Transport for SimpleHttpTransport {
