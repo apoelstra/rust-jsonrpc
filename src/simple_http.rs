@@ -3,7 +3,8 @@
 //! if minimal dependencies are a goal and synchronous communication is ok.
 
 use std::io::{BufRead, BufReader, Write};
-use std::net::{TcpStream, ToSocketAddrs};
+use std::net::TcpStream;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::{Duration, Instant};
 use std::{error, fmt, io, net, thread};
 
@@ -246,6 +247,65 @@ fn get_lines<R: BufRead>(reader: &mut R) -> Result<String, Error> {
     Ok(body)
 }
 
+/// Do some very basic manual URL parsing because the uri/url crates
+/// all have unicode-normalization as a dependency and that's broken.
+fn check_url(url: &str) -> Result<(SocketAddr, String), Error> {
+    // The fallback port in case no port was provided.
+    // This changes when the http or https scheme was provided.
+    let mut fallback_port = DEFAULT_PORT;
+
+    // We need to get the hostname and the port.
+    // (1) Split scheme
+    let after_scheme = {
+        let mut split = url.splitn(2, "://");
+        let s = split.next().unwrap();
+        match split.next() {
+            None => s, // no scheme present
+            Some(after) => {
+                // Check if the scheme is http or https.
+                if s == "http" {
+                    fallback_port = 80;
+                } else if s == "https" {
+                    fallback_port = 443;
+                } else {
+                    return Err(Error::url(url, "scheme should be http or https"));
+                }
+                after
+            }
+        }
+    };
+    // (2) split off path
+    let (before_path, path) = {
+        if let Some(slash) = after_scheme.find('/') {
+            (&after_scheme[0..slash], &after_scheme[slash..])
+        } else {
+            (after_scheme, "/")
+        }
+    };
+    // (3) split off auth part
+    let after_auth = {
+        let mut split = before_path.splitn(2, '@');
+        let s = split.next().unwrap();
+        split.next().unwrap_or(s)
+    };
+
+    // (4) Parse into socket address.
+    // At this point we either have <host_name> or <host_name_>:<port>
+    // `std::net::ToSocketAddrs` requires `&str` to have <host_name_>:<port> format.
+    let mut addr = match after_auth.to_socket_addrs() {
+        Ok(addr) => addr,
+        Err(_) => {
+            // Invalid socket address. Try to add port.
+            format!("{}:{}", after_auth, fallback_port).to_socket_addrs()?
+        }
+    };
+
+    match addr.next() {
+        Some(a) => Ok((a, path.to_owned())),
+        None => Err(Error::url(url, "invalid hostname: error extracting socket address")),
+    }
+}
+
 impl Transport for SimpleHttpTransport {
     fn send_request(&self, req: Request) -> Result<Response, crate::Error> {
         Ok(self.request(req)?)
@@ -282,66 +342,9 @@ impl Builder {
 
     /// Set the URL of the server to the transport.
     pub fn url(mut self, url: &str) -> Result<Self, Error> {
-        // Do some very basic manual URL parsing because the uri/url crates
-        // all have unicode-normalization as a dependency and that's broken.
-
-        // The fallback port in case no port was provided.
-        // This changes when the http or https scheme was provided.
-        let mut fallback_port = DEFAULT_PORT;
-
-        // We need to get the hostname and the port.
-        // (1) Split scheme
-        let after_scheme = {
-            let mut split = url.splitn(2, "://");
-            let s = split.next().unwrap();
-            match split.next() {
-                None => s, // no scheme present
-                Some(after) => {
-                    // Check if the scheme is http or https.
-                    if s == "http" {
-                        fallback_port = 80;
-                    } else if s == "https" {
-                        fallback_port = 443;
-                    } else {
-                        return Err(Error::url(url, "scheme schould be http or https"));
-                    }
-                    after
-                }
-            }
-        };
-        // (2) split off path
-        let (before_path, path) = {
-            if let Some(slash) = after_scheme.find('/') {
-                (&after_scheme[0..slash], &after_scheme[slash..])
-            } else {
-                (after_scheme, "/")
-            }
-        };
-        // (3) split off auth part
-        let after_auth = {
-            let mut split = before_path.splitn(2, '@');
-            let s = split.next().unwrap();
-            split.next().unwrap_or(s)
-        };
-
-        // (4) Parse into socket address.
-        // At this point we either have <host_name> or <host_name_>:<port>
-        // `std::net::ToSocketAddrs` requires `&str` to have <host_name_>:<port> format.
-        let mut addr = match after_auth.to_socket_addrs() {
-            Ok(addr) => addr,
-            Err(_) => {
-                // Invalid socket address. Try to add port.
-                format!("{}:{}", after_auth, fallback_port).to_socket_addrs()?
-            }
-        };
-
-        self.tp.addr = match addr.next() {
-            Some(a) => a,
-            None => {
-                return Err(Error::url(url, "invalid hostname: error extracting socket address"))
-            }
-        };
-        self.tp.path = path.to_owned();
+        let url = check_url(url)?;
+        self.tp.addr = url.0;
+        self.tp.path = url.1;
         Ok(self)
     }
 
