@@ -2,8 +2,12 @@
 //! round-tripper that works with the bitcoind RPC server. This can be used
 //! if minimal dependencies are a goal and synchronous communication is ok.
 
+#[cfg(feature = "proxy")]
+use socks::Socks5Stream;
 use std::io::{BufRead, BufReader, Write};
-use std::net::{TcpStream, ToSocketAddrs};
+#[cfg(not(feature = "proxy"))]
+use std::net::TcpStream;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::{Duration, Instant};
 use std::{error, fmt, io, net, thread};
 
@@ -18,6 +22,9 @@ use crate::{Request, Response};
 /// Set to 8332, the default RPC port for bitcoind.
 pub const DEFAULT_PORT: u16 = 8332;
 
+/// The Default SOCKS5 Port to use for proxy connection.
+pub const DEFAULT_PROXY_PORT: u16 = 9050;
+
 /// Simple HTTP transport that implements the necessary subset of HTTP for
 /// running a bitcoind RPC client.
 #[derive(Clone, Debug)]
@@ -27,6 +34,10 @@ pub struct SimpleHttpTransport {
     timeout: Duration,
     /// The value of the `Authorization` HTTP header.
     basic_auth: Option<String>,
+    #[cfg(feature = "proxy")]
+    proxy_addr: net::SocketAddr,
+    #[cfg(feature = "proxy")]
+    proxy_auth: Option<(String, String)>,
 }
 
 impl Default for SimpleHttpTransport {
@@ -39,6 +50,13 @@ impl Default for SimpleHttpTransport {
             path: "/".to_owned(),
             timeout: Duration::from_secs(15),
             basic_auth: None,
+            #[cfg(feature = "proxy")]
+            proxy_addr: net::SocketAddr::new(
+                net::IpAddr::V4(net::Ipv4Addr::new(127, 0, 0, 1)),
+                DEFAULT_PROXY_PORT,
+            ),
+            #[cfg(feature = "proxy")]
+            proxy_auth: None,
         }
     }
 }
@@ -60,6 +78,20 @@ impl SimpleHttpTransport {
     {
         // Open connection
         let request_deadline = Instant::now() + self.timeout;
+        #[cfg(feature = "proxy")]
+        let mut sock = if let Some((username, password)) = &self.proxy_auth {
+            Socks5Stream::connect_with_password(
+                self.proxy_addr,
+                self.addr,
+                username.as_str(),
+                password.as_str(),
+            )?
+            .into_inner()
+        } else {
+            Socks5Stream::connect(self.proxy_addr, self.addr)?.into_inner()
+        };
+
+        #[cfg(not(feature = "proxy"))]
         let mut sock = TcpStream::connect_timeout(&self.addr, self.timeout)?;
 
         sock.set_read_timeout(Some(self.timeout))?;
@@ -246,6 +278,65 @@ fn get_lines<R: BufRead>(reader: &mut R) -> Result<String, Error> {
     Ok(body)
 }
 
+/// Do some very basic manual URL parsing because the uri/url crates
+/// all have unicode-normalization as a dependency and that's broken.
+fn check_url(url: &str) -> Result<(SocketAddr, String), Error> {
+    // The fallback port in case no port was provided.
+    // This changes when the http or https scheme was provided.
+    let mut fallback_port = DEFAULT_PORT;
+
+    // We need to get the hostname and the port.
+    // (1) Split scheme
+    let after_scheme = {
+        let mut split = url.splitn(2, "://");
+        let s = split.next().unwrap();
+        match split.next() {
+            None => s, // no scheme present
+            Some(after) => {
+                // Check if the scheme is http or https.
+                if s == "http" {
+                    fallback_port = 80;
+                } else if s == "https" {
+                    fallback_port = 443;
+                } else {
+                    return Err(Error::url(url, "scheme should be http or https"));
+                }
+                after
+            }
+        }
+    };
+    // (2) split off path
+    let (before_path, path) = {
+        if let Some(slash) = after_scheme.find('/') {
+            (&after_scheme[0..slash], &after_scheme[slash..])
+        } else {
+            (after_scheme, "/")
+        }
+    };
+    // (3) split off auth part
+    let after_auth = {
+        let mut split = before_path.splitn(2, '@');
+        let s = split.next().unwrap();
+        split.next().unwrap_or(s)
+    };
+
+    // (4) Parse into socket address.
+    // At this point we either have <host_name> or <host_name_>:<port>
+    // `std::net::ToSocketAddrs` requires `&str` to have <host_name_>:<port> format.
+    let mut addr = match after_auth.to_socket_addrs() {
+        Ok(addr) => addr,
+        Err(_) => {
+            // Invalid socket address. Try to add port.
+            format!("{}:{}", after_auth, fallback_port).to_socket_addrs()?
+        }
+    };
+
+    match addr.next() {
+        Some(a) => Ok((a, path.to_owned())),
+        None => Err(Error::url(url, "invalid hostname: error extracting socket address")),
+    }
+}
+
 impl Transport for SimpleHttpTransport {
     fn send_request(&self, req: Request) -> Result<Response, crate::Error> {
         Ok(self.request(req)?)
@@ -282,66 +373,9 @@ impl Builder {
 
     /// Set the URL of the server to the transport.
     pub fn url(mut self, url: &str) -> Result<Self, Error> {
-        // Do some very basic manual URL parsing because the uri/url crates
-        // all have unicode-normalization as a dependency and that's broken.
-
-        // The fallback port in case no port was provided.
-        // This changes when the http or https scheme was provided.
-        let mut fallback_port = DEFAULT_PORT;
-
-        // We need to get the hostname and the port.
-        // (1) Split scheme
-        let after_scheme = {
-            let mut split = url.splitn(2, "://");
-            let s = split.next().unwrap();
-            match split.next() {
-                None => s, // no scheme present
-                Some(after) => {
-                    // Check if the scheme is http or https.
-                    if s == "http" {
-                        fallback_port = 80;
-                    } else if s == "https" {
-                        fallback_port = 443;
-                    } else {
-                        return Err(Error::url(url, "scheme schould be http or https"));
-                    }
-                    after
-                }
-            }
-        };
-        // (2) split off path
-        let (before_path, path) = {
-            if let Some(slash) = after_scheme.find('/') {
-                (&after_scheme[0..slash], &after_scheme[slash..])
-            } else {
-                (after_scheme, "/")
-            }
-        };
-        // (3) split off auth part
-        let after_auth = {
-            let mut split = before_path.splitn(2, '@');
-            let s = split.next().unwrap();
-            split.next().unwrap_or(s)
-        };
-
-        // (4) Parse into socket address.
-        // At this point we either have <host_name> or <host_name_>:<port>
-        // `std::net::ToSocketAddrs` requires `&str` to have <host_name_>:<port> format.
-        let mut addr = match after_auth.to_socket_addrs() {
-            Ok(addr) => addr,
-            Err(_) => {
-                // Invalid socket address. Try to add port.
-                format!("{}:{}", after_auth, fallback_port).to_socket_addrs()?
-            }
-        };
-
-        self.tp.addr = match addr.next() {
-            Some(a) => a,
-            None => {
-                return Err(Error::url(url, "invalid hostname: error extracting socket address"))
-            }
-        };
-        self.tp.path = path.to_owned();
+        let url = check_url(url)?;
+        self.tp.addr = url.0;
+        self.tp.path = url.1;
         Ok(self)
     }
 
@@ -359,6 +393,22 @@ impl Builder {
     /// Add authentication information to the transport using a cookie string ('user:pass')
     pub fn cookie_auth<S: AsRef<str>>(mut self, cookie: S) -> Self {
         self.tp.basic_auth = Some(format!("Basic {}", &base64::encode(cookie.as_ref().as_bytes())));
+        self
+    }
+
+    #[cfg(feature = "proxy")]
+    /// Add proxy address to the transport for SOCKS5 proxy
+    pub fn proxy_addr<S: AsRef<str>>(mut self, proxy_addr: S) -> Result<Self, Error> {
+        // We don't expect path in proxy address.
+        self.tp.proxy_addr = check_url(proxy_addr.as_ref())?.0;
+        Ok(self)
+    }
+
+    #[cfg(feature = "proxy")]
+    /// Add optional proxy authentication as ('username', 'password')
+    pub fn proxy_auth<S: AsRef<str>>(mut self, user: S, pass: S) -> Self {
+        self.tp.proxy_auth =
+            Some((user, pass)).map(|(u, p)| (u.as_ref().to_string(), p.as_ref().to_string()));
         self
     }
 
@@ -387,11 +437,34 @@ impl crate::Client {
         }
         Ok(crate::Client::with_transport(builder.build()))
     }
+
+    #[cfg(feature = "proxy")]
+    /// Create a new JSON_RPC client using a HTTP-Socks5 proxy transport.
+    pub fn http_proxy(
+        url: &str,
+        user: Option<String>,
+        pass: Option<String>,
+        proxy_addr: &str,
+        proxy_auth: Option<(&str, &str)>,
+    ) -> Result<crate::Client, Error> {
+        let mut builder = Builder::new().url(url)?;
+        if let Some(user) = user {
+            builder = builder.auth(user, pass);
+        }
+        builder = builder.proxy_addr(proxy_addr)?;
+        if let Some((user, pass)) = proxy_auth {
+            builder = builder.proxy_auth(user, pass);
+        }
+        let tp = builder.build();
+        Ok(crate::Client::with_transport(tp))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::net;
+    #[cfg(feature = "proxy")]
+    use std::str::FromStr;
 
     use super::*;
     use crate::Client;
@@ -432,7 +505,14 @@ mod tests {
             "http://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]",
         ];
         for u in &valid_urls {
-            Builder::new().url(*u).unwrap_or_else(|_| panic!("error for: {}", u));
+            let (addr, path) = check_url(u).unwrap();
+            let builder = Builder::new().url(*u).unwrap_or_else(|_| panic!("error for: {}", u));
+            assert_eq!(builder.tp.addr, addr);
+            assert_eq!(builder.tp.path, path);
+            assert_eq!(builder.tp.timeout, Duration::from_secs(15));
+            assert_eq!(builder.tp.basic_auth, None);
+            #[cfg(feature = "proxy")]
+            assert_eq!(builder.tp.proxy_addr, SocketAddr::from_str("127.0.0.1:9050").unwrap());
         }
 
         let invalid_urls = [
@@ -461,5 +541,28 @@ mod tests {
         let _ = Client::with_transport(tp);
 
         let _ = Client::simple_http("localhost:22", None, None).unwrap();
+    }
+
+    #[cfg(feature = "proxy")]
+    #[test]
+    fn construct_with_proxy() {
+        let tp = Builder::new()
+            .timeout(Duration::from_millis(100))
+            .url("localhost:22")
+            .unwrap()
+            .auth("user", None)
+            .proxy_addr("127.0.0.1:9050")
+            .unwrap()
+            .build();
+        let _ = Client::with_transport(tp);
+
+        let _ = Client::http_proxy(
+            "localhost:22",
+            None,
+            None,
+            "127.0.0.1:9050",
+            Some(("user", "password")),
+        )
+        .unwrap();
     }
 }

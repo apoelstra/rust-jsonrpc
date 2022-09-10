@@ -1,6 +1,6 @@
 #!/bin/sh -ex
 
-FEATURES="simple_http simple_tcp simple_uds"
+FEATURES="simple_http simple_tcp simple_uds proxy"
 
 cargo --version
 rustc --version
