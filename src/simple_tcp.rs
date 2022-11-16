@@ -1,5 +1,6 @@
 //! This module implements a synchronous transport over a raw TcpListener. Note that
 //! it does not handle TCP over Unix Domain Sockets, see `simple_uds` for this.
+//!
 
 use std::{error, fmt, io, net, time};
 
@@ -12,9 +13,9 @@ use crate::{Request, Response};
 /// Error that can occur while using the TCP transport.
 #[derive(Debug)]
 pub enum Error {
-    /// An error occurred on the socket layer
+    /// An error occurred on the socket layer.
     SocketError(io::Error),
-    /// We didn't receive a complete response till the deadline ran out
+    /// We didn't receive a complete response till the deadline ran out.
     Timeout,
     /// JSON parsing error.
     Json(serde_json::Error),
@@ -66,14 +67,14 @@ impl From<Error> for crate::Error {
 /// Simple synchronous TCP transport.
 #[derive(Debug, Clone)]
 pub struct TcpTransport {
-    /// The internet socket address to connect to
+    /// The internet socket address to connect to.
     pub addr: net::SocketAddr,
-    /// The read and write timeout to use for this connection
+    /// The read and write timeout to use for this connection.
     pub timeout: Option<time::Duration>,
 }
 
 impl TcpTransport {
-    /// Create a new TcpTransport without timeouts
+    /// Creates a new TcpTransport without timeouts.
     pub fn new(addr: net::SocketAddr) -> TcpTransport {
         TcpTransport {
             addr,

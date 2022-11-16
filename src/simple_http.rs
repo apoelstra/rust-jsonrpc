@@ -1,6 +1,7 @@
 //! This module implements a minimal and non standard conforming HTTP 1.0
 //! round-tripper that works with the bitcoind RPC server. This can be used
 //! if minimal dependencies are a goal and synchronous communication is ok.
+//!
 
 #[cfg(feature = "proxy")]
 use socks::Socks5Stream;
@@ -64,12 +65,12 @@ impl Default for SimpleHttpTransport {
 }
 
 impl SimpleHttpTransport {
-    /// Construct a new `SimpleHttpTransport` with default parameters
+    /// Constructs a new [`SimpleHttpTransport`] with default parameters.
     pub fn new() -> Self {
         SimpleHttpTransport::default()
     }
 
-    /// Returns a builder for `SimpleHttpTransport`
+    /// Returns a builder for [`SimpleHttpTransport`].
     pub fn builder() -> Builder {
         Builder::new()
     }
@@ -209,7 +210,7 @@ impl SimpleHttpTransport {
     }
 }
 
-/// Error that can happen when sending requests
+/// Error that can happen when sending requests.
 #[derive(Debug)]
 pub enum Error {
     /// An invalid URL was passed.
@@ -219,20 +220,20 @@ pub enum Error {
         /// The reason the URL is invalid.
         reason: &'static str,
     },
-    /// An error occurred on the socket layer
+    /// An error occurred on the socket layer.
     SocketError(io::Error),
-    /// The HTTP header of the response couldn't be parsed
+    /// The HTTP header of the response couldn't be parsed.
     HttpParseError,
-    /// Unexpected HTTP error code (non-200)
+    /// Unexpected HTTP error code (non-200).
     HttpErrorCode(u16),
-    /// We didn't receive a complete response till the deadline ran out
+    /// We didn't receive a complete response till the deadline ran out.
     Timeout,
     /// JSON parsing error.
     Json(serde_json::Error),
 }
 
 impl Error {
-    /// Utility method to create [Error::InvalidUrl] variants.
+    /// Utility method to create [`Error::InvalidUrl`] variants.
     fn url<U: Into<String>>(url: U, reason: &'static str) -> Error {
         Error::InvalidUrl {
             url: url.into(),
@@ -295,8 +296,8 @@ impl From<Error> for crate::Error {
     }
 }
 
-/// Try to read a line from a buffered reader. If no line can be read till the deadline is reached
-/// return a timeout error.
+/// Tries to read a line from a buffered reader. If no line can be read till the deadline is reached
+/// returns a timeout error.
 fn get_line<R: BufRead>(reader: &mut R, deadline: Instant) -> Result<String, Error> {
     let mut line = String::new();
     while deadline > Instant::now() {
@@ -312,7 +313,7 @@ fn get_line<R: BufRead>(reader: &mut R, deadline: Instant) -> Result<String, Err
     Err(Error::Timeout)
 }
 
-/// Do some very basic manual URL parsing because the uri/url crates
+/// Does some very basic manual URL parsing because the uri/url crates
 /// all have unicode-normalization as a dependency and that's broken.
 fn check_url(url: &str) -> Result<(SocketAddr, String), Error> {
     // The fallback port in case no port was provided.
@@ -385,27 +386,27 @@ impl Transport for SimpleHttpTransport {
     }
 }
 
-/// Builder for simple bitcoind `SimpleHttpTransport`s
+/// Builder for simple bitcoind [`SimpleHttpTransport`].
 #[derive(Clone, Debug)]
 pub struct Builder {
     tp: SimpleHttpTransport,
 }
 
 impl Builder {
-    /// Construct new `Builder` with default configuration
+    /// Constructs a new [`Builder`] with default configuration.
     pub fn new() -> Builder {
         Builder {
             tp: SimpleHttpTransport::new(),
         }
     }
 
-    /// Sets the timeout after which requests will abort if they aren't finished
+    /// Sets the timeout after which requests will abort if they aren't finished.
     pub fn timeout(mut self, timeout: Duration) -> Self {
         self.tp.timeout = timeout;
         self
     }
 
-    /// Set the URL of the server to the transport.
+    /// Sets the URL of the server to the transport.
     pub fn url(mut self, url: &str) -> Result<Self, Error> {
         let url = check_url(url)?;
         self.tp.addr = url.0;
@@ -413,7 +414,7 @@ impl Builder {
         Ok(self)
     }
 
-    /// Add authentication information to the transport.
+    /// Adds authentication information to the transport.
     pub fn auth<S: AsRef<str>>(mut self, user: S, pass: Option<S>) -> Self {
         let mut auth = user.as_ref().to_owned();
         auth.push(':');
@@ -424,14 +425,14 @@ impl Builder {
         self
     }
 
-    /// Add authentication information to the transport using a cookie string ('user:pass')
+    /// Adds authentication information to the transport using a cookie string ('user:pass').
     pub fn cookie_auth<S: AsRef<str>>(mut self, cookie: S) -> Self {
         self.tp.basic_auth = Some(format!("Basic {}", &base64::encode(cookie.as_ref().as_bytes())));
         self
     }
 
     #[cfg(feature = "proxy")]
-    /// Add proxy address to the transport for SOCKS5 proxy
+    /// Adds proxy address to the transport for SOCKS5 proxy.
     pub fn proxy_addr<S: AsRef<str>>(mut self, proxy_addr: S) -> Result<Self, Error> {
         // We don't expect path in proxy address.
         self.tp.proxy_addr = check_url(proxy_addr.as_ref())?.0;
@@ -439,14 +440,14 @@ impl Builder {
     }
 
     #[cfg(feature = "proxy")]
-    /// Add optional proxy authentication as ('username', 'password')
+    /// Adds optional proxy authentication as ('username', 'password').
     pub fn proxy_auth<S: AsRef<str>>(mut self, user: S, pass: S) -> Self {
         self.tp.proxy_auth =
             Some((user, pass)).map(|(u, p)| (u.as_ref().to_string(), p.as_ref().to_string()));
         self
     }
 
-    /// Builds the final `SimpleHttpTransport`
+    /// Builds the final [`SimpleHttpTransport`].
     pub fn build(self) -> SimpleHttpTransport {
         self.tp
     }
@@ -459,7 +460,7 @@ impl Default for Builder {
 }
 
 impl crate::Client {
-    /// Create a new JSON-RPC client using a bare-minimum HTTP transport.
+    /// Creates a new JSON-RPC client using a bare-minimum HTTP transport.
     pub fn simple_http(
         url: &str,
         user: Option<String>,
@@ -473,7 +474,7 @@ impl crate::Client {
     }
 
     #[cfg(feature = "proxy")]
-    /// Create a new JSON_RPC client using a HTTP-Socks5 proxy transport.
+    /// Creates a new JSON_RPC client using a HTTP-Socks5 proxy transport.
     pub fn http_proxy(
         url: &str,
         user: Option<String>,

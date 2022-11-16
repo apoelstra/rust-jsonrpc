@@ -1,4 +1,5 @@
 //! This module implements a synchronous transport over a raw TcpListener.
+//!
 
 use std::os::unix::net::UnixStream;
 use std::{error, fmt, io, path, time};
@@ -12,9 +13,9 @@ use crate::{Request, Response};
 /// Error that can occur while using the UDS transport.
 #[derive(Debug)]
 pub enum Error {
-    /// An error occurred on the socket layer
+    /// An error occurred on the socket layer.
     SocketError(io::Error),
-    /// We didn't receive a complete response till the deadline ran out
+    /// We didn't receive a complete response till the deadline ran out.
     Timeout,
     /// JSON parsing error.
     Json(serde_json::Error),
@@ -66,14 +67,14 @@ impl From<Error> for crate::error::Error {
 /// Simple synchronous UDS transport.
 #[derive(Debug, Clone)]
 pub struct UdsTransport {
-    /// The path to the Unix Domain Socket
+    /// The path to the Unix Domain Socket.
     pub sockpath: path::PathBuf,
-    /// The read and write timeout to use
+    /// The read and write timeout to use.
     pub timeout: Option<time::Duration>,
 }
 
 impl UdsTransport {
-    /// Create a new UdsTransport without timeouts to use
+    /// Creates a new [`UdsTransport`] without timeouts to use.
     pub fn new<P: AsRef<path::Path>>(sockpath: P) -> UdsTransport {
         UdsTransport {
             sockpath: sockpath.as_ref().to_path_buf(),

@@ -44,8 +44,8 @@ pub trait Transport: Send + Sync + 'static {
 
 /// A JSON-RPC client.
 ///
-/// Create a new Client using one of the transport-specific constructors:
-/// - [Client::simple_http] for the built-in bare-minimum HTTP transport
+/// Create a new Client using one of the transport-specific constructors e.g.,
+/// [`Client::simple_http`] for a bare-minimum HTTP transport.
 pub struct Client {
     pub(crate) transport: Box<dyn Transport>,
     nonce: atomic::AtomicUsize,
@@ -74,16 +74,20 @@ impl Client {
         }
     }
 
-    /// Sends a request to a client
+    /// Sends a request to a client.
     pub fn send_request(&self, request: Request) -> Result<Response, Error> {
         self.transport.send_request(request)
     }
 
-    /// Sends a batch of requests to the client.  The return vector holds the response
-    /// for the request at the corresponding index.  If no response was provided, it's [None].
+    /// Sends a batch of requests to the client.
     ///
     /// Note that the requests need to have valid IDs, so it is advised to create the requests
     /// with [`Client::build_request`].
+    ///
+    /// # Returns
+    ///
+    /// The return vector holds the response for the request at the corresponding index. If no
+    /// response was provided, it's [`None`].
     pub fn send_batch(&self, requests: &[Request]) -> Result<Vec<Option<Response>>, Error> {
         if requests.is_empty() {
             return Err(Error::EmptyBatch);
