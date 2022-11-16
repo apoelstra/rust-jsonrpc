@@ -51,14 +51,14 @@ pub use crate::error::Error;
 
 use serde_json::value::RawValue;
 
-/// Shorthand method to convert an argument into a [`Box<serde_json::value::RawValue>`].
+/// Shorthand method to convert an argument into a boxed [`serde_json::value::RawValue`].
 ///
 /// Since serializers rarely fail, it's probably easier to use [`arg`] instead.
 pub fn try_arg<T: serde::Serialize>(arg: T) -> Result<Box<RawValue>, serde_json::Error> {
     RawValue::from_string(serde_json::to_string(&arg)?)
 }
 
-/// Shorthand method to convert an argument into a [`Box<serde_json::value::RawValue>`].
+/// Shorthand method to convert an argument into a boxed [`serde_json::value::RawValue`].
 ///
 /// This conversion should not fail, so to avoid returning a [`Result`],
 /// in case of an error, the error is serialized as the return value.
