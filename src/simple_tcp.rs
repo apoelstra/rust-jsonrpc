@@ -85,7 +85,7 @@ impl TcpTransport {
     where
         R: for<'a> serde::de::Deserialize<'a>,
     {
-        let mut sock = net::TcpStream::connect(&self.addr)?;
+        let mut sock = net::TcpStream::connect(self.addr)?;
         sock.set_read_timeout(self.timeout)?;
         sock.set_write_timeout(self.timeout)?;
 
@@ -129,7 +129,7 @@ mod tests {
     fn sanity_check_tcp_transport() {
         let addr: net::SocketAddr =
             net::SocketAddrV4::new(net::Ipv4Addr::new(127, 0, 0, 1), 0).into();
-        let server = net::TcpListener::bind(&addr).unwrap();
+        let server = net::TcpListener::bind(addr).unwrap();
         let addr = server.local_addr().unwrap();
         let dummy_req = Request {
             method: "arandommethod",
