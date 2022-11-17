@@ -6,6 +6,7 @@
 #[cfg(feature = "proxy")]
 use socks::Socks5Stream;
 use std::io::{BufRead, BufReader, Read, Write};
+#[cfg(not(fuzzing))]
 use std::net::TcpStream;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::{Arc, Mutex};
@@ -18,6 +19,43 @@ use serde_json;
 
 use crate::client::Transport;
 use crate::{Request, Response};
+
+#[cfg(fuzzing)]
+/// Global mutex used by the fuzzing harness to inject data into the read
+/// end of the TCP stream.
+pub static FUZZ_TCP_SOCK: Mutex<Option<io::Cursor<Vec<u8>>>> = Mutex::new(None);
+
+#[cfg(fuzzing)]
+#[derive(Clone, Debug)]
+struct TcpStream;
+
+#[cfg(fuzzing)]
+mod impls {
+    use super::*;
+    impl Read for TcpStream {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            match *FUZZ_TCP_SOCK.lock().unwrap() {
+                Some(ref mut cursor) => io::Read::read(cursor, buf),
+                None => Ok(0),
+            }
+        }
+    }
+    impl Write for TcpStream {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            io::sink().write(buf)
+        }
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl TcpStream {
+        pub fn connect_timeout(_: &SocketAddr, _: Duration) -> io::Result<Self> { Ok(TcpStream) }
+        pub fn set_read_timeout(&self, _: Option<Duration>) -> io::Result<()> { Ok(()) }
+        pub fn set_write_timeout(&self, _: Option<Duration>) -> io::Result<()> { Ok(()) }
+    }
+}
+
 
 /// The default TCP port to use for connections.
 /// Set to 8332, the default RPC port for bitcoind.
