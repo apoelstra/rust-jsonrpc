@@ -6,14 +6,15 @@ jobs:
   Tests:
     name: Tests
     strategy:
+      fail-fast: false
       matrix:
         os:
           - ubuntu-latest
           - macOS-latest
           - windows-latest
         toolchain:
-          - 1.41.1
           - stable
+          - 1.41.1
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout Crate
@@ -27,7 +28,7 @@ jobs:
       - name: Running tests on ${{ matrix.toolchain }}
         env:
           DO_FEATURE_MATRIX: true
-        run: cargo test --verbose --all-features
+        run: ./contrib/test.sh
 
   Nightly:
     name: Nightly - Docs + Fmt

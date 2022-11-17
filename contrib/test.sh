@@ -11,6 +11,15 @@ if cargo --version | grep nightly; then
     NIGHTLY=true
 fi
 
+# On MacOS on 1.41 we get a link failure with syn
+# This is fixed by https://github.com/rust-lang/rust/pull/91604 (I think)
+# but implies that we can't do testing on MacOS for now, at least with 1.41.
+if cargo --version | grep "1\.41\.0"; then
+    if [ "$RUNNER_OS" = "macOS" ]; then
+        exit 0
+    fi
+fi
+
 # Defaults / sanity checks
 cargo build --all
 cargo test --all
