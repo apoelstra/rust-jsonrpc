@@ -79,13 +79,11 @@ impl SimpleHttpTransport {
     where
         R: for<'a> serde::de::Deserialize<'a>,
     {
-        // `try_request` should not panic, so the mutex shouldn't be poisoned
-        // and unwrapping should be safe
-        let mut sock = self.sock.lock().expect("poisoned mutex");
-        match self.try_request(req, &mut sock) {
+        match self.try_request(req) {
             Ok(response) => Ok(response),
             Err(err) => {
-                *sock = None;
+                // No part of this codebase should panic, so unwrapping a mutex lock is fine
+                *self.sock.lock().expect("poisoned mutex") = None;
                 Err(err)
             }
         }
@@ -94,13 +92,14 @@ impl SimpleHttpTransport {
     fn try_request<R>(
         &self,
         req: impl serde::Serialize,
-        sock: &mut Option<TcpStream>,
     ) -> Result<R, Error>
     where
         R: for<'a> serde::de::Deserialize<'a>,
     {
         // Open connection
         let request_deadline = Instant::now() + self.timeout;
+        // No part of this codebase should panic, so unwrapping a mutex lock is fine
+        let mut sock = self.sock.lock().expect("poisoned mutex");
         if sock.is_none() {
             *sock = Some({
                 #[cfg(feature = "proxy")]
@@ -127,6 +126,8 @@ impl SimpleHttpTransport {
                 }
             })
         };
+        // In the immediately preceding block, we made sure that `sock` is non-`None`,
+        // so unwrapping here is fine.
         let sock = sock.as_mut().unwrap();
 
         // Serialize the body first so we can set the Content-Length header.
@@ -196,6 +197,7 @@ impl SimpleHttpTransport {
         // Even if it's != 200, we parse the response as we may get a JSONRPC error instead
         // of the less meaningful HTTP error code.
         reader.read_exact(&mut buffer)?;
+        drop(reader); // Unlock the mutex
         match serde_json::from_slice(&buffer) {
             Ok(s) => Ok(s),
             Err(e) => {
