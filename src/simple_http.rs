@@ -479,7 +479,7 @@ mod tests {
             "http://me:weak@localhost:22/wallet",
         ];
         for u in &urls {
-            let tp = Builder::new().url(*u).unwrap().build();
+            let tp = Builder::new().url(u).unwrap().build();
             assert_eq!(tp.addr, addr);
         }
 
@@ -506,7 +506,7 @@ mod tests {
         ];
         for u in &valid_urls {
             let (addr, path) = check_url(u).unwrap();
-            let builder = Builder::new().url(*u).unwrap_or_else(|_| panic!("error for: {}", u));
+            let builder = Builder::new().url(u).unwrap_or_else(|_| panic!("error for: {}", u));
             assert_eq!(builder.tp.addr, addr);
             assert_eq!(builder.tp.path, path);
             assert_eq!(builder.tp.timeout, Duration::from_secs(15));
@@ -523,7 +523,7 @@ mod tests {
             // NB somehow, Rust's IpAddr accepts "127.0.0" and adds the extra 0..
         ];
         for u in &invalid_urls {
-            if let Ok(b) = Builder::new().url(*u) {
+            if let Ok(b) = Builder::new().url(u) {
                 let tp = b.build();
                 panic!("expected error for url {}, got {:?}", u, tp);
             }

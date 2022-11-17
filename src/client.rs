@@ -132,7 +132,7 @@ impl Client {
         let id = request.id.clone();
 
         let response = self.send_request(request)?;
-        if response.jsonrpc != None && response.jsonrpc != Some(From::from("2.0")) {
+        if response.jsonrpc.is_some() && response.jsonrpc != Some(From::from("2.0")) {
             return Err(Error::VersionMismatch);
         }
         if response.id != id {
