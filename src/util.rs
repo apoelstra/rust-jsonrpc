@@ -17,8 +17,8 @@ use std::hash::{Hash, Hasher};
 
 use serde_json::Value;
 
-/// Newtype around `Value` which allows hashing for use as hashmap keys
-/// This is needed for batch requests.
+/// Newtype around `Value` which allows hashing for use as hashmap keys,
+/// this is needed for batch requests.
 ///
 /// The reason `Value` does not support `Hash` or `Eq` by itself
 /// is that it supports `f64` values; but for batch requests we

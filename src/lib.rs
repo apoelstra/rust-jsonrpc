@@ -51,15 +51,16 @@ pub use crate::error::Error;
 
 use serde_json::value::RawValue;
 
-/// Shorthand method to convert an argument into a [Box<serde_json::value::RawValue>].
-/// Since serializers rarely fail, it's probably easier to use [arg] instead.
+/// Shorthand method to convert an argument into a boxed [`serde_json::value::RawValue`].
+///
+/// Since serializers rarely fail, it's probably easier to use [`arg`] instead.
 pub fn try_arg<T: serde::Serialize>(arg: T) -> Result<Box<RawValue>, serde_json::Error> {
     RawValue::from_string(serde_json::to_string(&arg)?)
 }
 
-/// Shorthand method to convert an argument into a [Box<serde_json::value::RawValue>].
+/// Shorthand method to convert an argument into a boxed [`serde_json::value::RawValue`].
 ///
-/// This conversion should not fail, so to avoid returning a [Result],
+/// This conversion should not fail, so to avoid returning a [`Result`],
 /// in case of an error, the error is serialized as the return value.
 pub fn arg<T: serde::Serialize>(arg: T) -> Box<RawValue> {
     match try_arg(arg) {
@@ -72,33 +73,33 @@ pub fn arg<T: serde::Serialize>(arg: T) -> Box<RawValue> {
 }
 
 #[derive(Debug, Clone, Serialize)]
-/// A JSONRPC request object
+/// A JSONRPC request object.
 pub struct Request<'a> {
-    /// The name of the RPC call
+    /// The name of the RPC call.
     pub method: &'a str,
-    /// Parameters to the RPC call
+    /// Parameters to the RPC call.
     pub params: &'a [Box<RawValue>],
-    /// Identifier for this Request, which should appear in the response
+    /// Identifier for this Request, which should appear in the response.
     pub id: serde_json::Value,
-    /// jsonrpc field, MUST be "2.0"
+    /// jsonrpc field, MUST be "2.0".
     pub jsonrpc: Option<&'a str>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-/// A JSONRPC response object
+/// A JSONRPC response object.
 pub struct Response {
-    /// A result if there is one, or null
+    /// A result if there is one, or [`None`].
     pub result: Option<Box<RawValue>>,
-    /// An error if there is one, or null
+    /// An error if there is one, or [`None`].
     pub error: Option<error::RpcError>,
-    /// Identifier for this Request, which should match that of the request
+    /// Identifier for this Request, which should match that of the request.
     pub id: serde_json::Value,
-    /// jsonrpc field, MUST be "2.0"
+    /// jsonrpc field, MUST be "2.0".
     pub jsonrpc: Option<String>,
 }
 
 impl Response {
-    /// Extract the result from a response
+    /// Extracts the result from a response.
     pub fn result<T: for<'a> serde::de::Deserialize<'a>>(&self) -> Result<T, Error> {
         if let Some(ref e) = self.error {
             return Err(Error::Rpc(e.clone()));
@@ -111,7 +112,7 @@ impl Response {
         }
     }
 
-    /// Return the RPC error, if there was one, but do not check the result
+    /// Returns the RPC error, if there was one, but does not check the result.
     pub fn check_error(self) -> Result<(), Error> {
         if let Some(e) = self.error {
             Err(Error::Rpc(e))
@@ -120,7 +121,7 @@ impl Response {
         }
     }
 
-    /// Returns whether or not the `result` field is empty
+    /// Returns whether or not the `result` field is empty.
     pub fn is_none(&self) -> bool {
         self.result.is_none()
     }
