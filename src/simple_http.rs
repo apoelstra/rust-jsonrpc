@@ -160,16 +160,19 @@ impl SimpleHttpTransport {
         if http_response.len() < 12 {
             return Err(Error::HttpResponseTooShort { actual: http_response.len(), needed: 12 });
         }
+        if !http_response.as_bytes()[..12].is_ascii() {
+            return Err(Error::HttpResponseNonAsciiHello(http_response.as_bytes()[..12].to_vec()));
+        }
         if !http_response.starts_with("HTTP/1.1 ") {
             return Err(Error::HttpResponseBadHello {
-                actual: String::from_utf8_lossy(&http_response.as_bytes()[0..9]).into(),
+                actual: http_response[0..9].into(),
                 expected: "HTTP/1.1 ".into(),
             });
         }
         let response_code = match http_response[9..12].parse::<u16>() {
             Ok(n) => n,
             Err(e) => return Err(Error::HttpResponseBadStatus(
-                String::from_utf8_lossy(&http_response.as_bytes()[9..12]).into(),
+                http_response[9..12].into(),
                 e,
             )),
         };
@@ -240,6 +243,8 @@ pub enum Error {
         /// Minimum length we can parse
         needed: usize,
     },
+    /// The HTTP response started with a HTTP/1.1 line which was not ASCII
+    HttpResponseNonAsciiHello(Vec<u8>),
     /// The HTTP response did not start with HTTP/1.1
     HttpResponseBadHello {
         /// Actual HTTP-whatever string
@@ -282,6 +287,9 @@ impl fmt::Display for Error {
             Error::HttpResponseTooShort { ref actual, ref needed } => {
                 write!(f, "HTTP response too short: length {}, needed {}.", actual, needed)
             },
+            Error::HttpResponseNonAsciiHello(ref bytes) => {
+                write!(f, "HTTP response started with non-ASCII {:?}", bytes)
+            },
             Error::HttpResponseBadHello { ref actual, ref expected } => {
                 write!(f, "HTTP response started with `{}`; expected `{}`.", actual, expected)
             },
@@ -308,6 +316,7 @@ impl error::Error for Error {
                 ..
             }
             | HttpResponseTooShort { .. }
+            | HttpResponseNonAsciiHello(..)
             | HttpResponseBadHello { .. }
             | HttpResponseBadStatus(..)
             | HttpResponseBadContentLength(..)
