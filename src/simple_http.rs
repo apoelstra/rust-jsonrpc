@@ -93,6 +93,9 @@ impl Default for SimpleHttpTransport {
                 DEFAULT_PORT,
             ),
             path: "/".to_owned(),
+            #[cfg(fuzzing)]
+            timeout: Duration::from_millis(1),
+            #[cfg(not(fuzzing))]
             timeout: Duration::from_secs(15),
             basic_auth: None,
             #[cfg(feature = "proxy")]
