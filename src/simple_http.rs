@@ -26,6 +26,11 @@ pub const DEFAULT_PORT: u16 = 8332;
 /// The Default SOCKS5 Port to use for proxy connection.
 pub const DEFAULT_PROXY_PORT: u16 = 9050;
 
+/// Maximum size of the allocation we initially make for a response
+const INITIAL_RESP_ALLOC: u64 = 1024 * 1024;
+/// Absolute maximum content length we will allow before cutting off the response
+const FINAL_RESP_ALLOC: u64 = 1024 * 1024 * 1024;
+
 /// Simple HTTP transport that implements the necessary subset of HTTP for
 /// running a bitcoind RPC client.
 #[derive(Clone, Debug)]
@@ -156,7 +161,7 @@ impl SimpleHttpTransport {
         let mut reader = BufReader::new(sock);
 
         // Parse first HTTP response header line
-        let http_response = get_line(&mut reader, request_deadline)?;
+        let http_response = get_line(&mut reader, Instant::now() + self.timeout)?;
         if http_response.len() < 12 {
             return Err(Error::HttpResponseTooShort { actual: http_response.len(), needed: 12 });
         }
@@ -180,18 +185,18 @@ impl SimpleHttpTransport {
         // Parse response header fields
         let mut content_length = None;
         loop {
-            let line = get_line(&mut reader, request_deadline)?;
-
+            let mut line = get_line(&mut reader, request_deadline)?;
             if line == "\r\n" {
                 break;
             }
+            line.make_ascii_lowercase();
 
             const CONTENT_LENGTH: &str = "content-length: ";
-            if line.to_lowercase().starts_with(CONTENT_LENGTH) {
+            if line.starts_with(CONTENT_LENGTH) {
                 content_length = Some(
                     line[CONTENT_LENGTH.len()..]
                         .trim()
-                        .parse::<usize>()
+                        .parse::<u64>()
                         .map_err(|e| Error::HttpResponseBadContentLength(line[CONTENT_LENGTH.len()..].into(), e))?
                 );
             }
@@ -202,17 +207,40 @@ impl SimpleHttpTransport {
             return Err(Error::HttpErrorCode(response_code));
         }
 
-        let content_length = content_length.ok_or(Error::HttpParseError)?;
+        // Read up to `content_length` bytes. Note that if there is no content-length
+        // header, we will assume an effectively infinite content length, i.e. we will
+        // just keep reading from the socket until it is closed.
+        let buffer = match content_length {
+            None => {
+                let mut buffer = Vec::with_capacity(INITIAL_RESP_ALLOC as usize);
+                // `take` consumes `reader` and drops it, unlocking the mutex
+                reader.take(FINAL_RESP_ALLOC).read_to_end(&mut buffer)?;
+                buffer
+            },
+            Some(n) if n > FINAL_RESP_ALLOC => {
+                return Err(Error::HttpResponseContentLengthTooLarge {
+                    length: n,
+                    max: FINAL_RESP_ALLOC,
+                });
+            },
+            Some(n) => {
+                let mut buffer = Vec::with_capacity(INITIAL_RESP_ALLOC as usize);
+                // `take` consumes `reader` and drops it, unlocking the mutex
+                let n_read = reader.take(n).read_to_end(&mut buffer)? as u64;
+                if n_read < n {
+                    return Err(Error::IncompleteResponse { content_length: n, n_read });
+                }
+                buffer
+            }
+        };
 
-        let mut buffer = vec![0; content_length];
-
-        // Even if it's != 200, we parse the response as we may get a JSONRPC error instead
-        // of the less meaningful HTTP error code.
-        reader.read_exact(&mut buffer)?;
-        drop(reader); // Unlock the mutex
+        // Attempt to parse the response. Don't check the HTTP error code until
+        // after parsing, since Bitcoin Core will often return a descriptive JSON
+        // error structure which is more useful than the error code.
         match serde_json::from_slice(&buffer) {
             Ok(s) => Ok(s),
             Err(e) => {
+                // If the response was not 200, assume the parse failed because of that
                 if response_code != 200 {
                     Err(Error::HttpErrorCode(response_code))
                 } else {
@@ -256,10 +284,23 @@ pub enum Error {
     HttpResponseBadStatus(String, num::ParseIntError),
     /// Could not parse the status value as a number
     HttpResponseBadContentLength(String, num::ParseIntError),
-    /// The HTTP header of the response couldn't be parsed.
-    HttpParseError,
+    /// The indicated content-length header exceeded our maximum
+    HttpResponseContentLengthTooLarge {
+        /// The length indicated in the content-length header
+        length: u64,
+        /// Our hard maximum on number of bytes we'll try to read
+        max: u64,
+    },
     /// Unexpected HTTP error code (non-200).
     HttpErrorCode(u16),
+    /// Received EOF before getting as many bytes as were indicated by the
+    /// content-length header
+    IncompleteResponse {
+        /// The content-length header
+        content_length: u64,
+        /// The number of bytes we actually read
+        n_read: u64,
+    },
     /// We didn't receive a complete response till the deadline ran out.
     Timeout,
     /// JSON parsing error.
@@ -299,8 +340,13 @@ impl fmt::Display for Error {
             Error::HttpResponseBadContentLength(ref len, ref err) => {
                 write!(f, "HTTP response had bad content length `{}`: {}.", len, err)
             },
-            Error::HttpParseError => f.write_str("Couldn't parse response header."),
+            Error::HttpResponseContentLengthTooLarge { length, max } => {
+                write!(f, "HTTP response content length {} exceeds our max {}.", length, max)
+            },
             Error::HttpErrorCode(c) => write!(f, "unexpected HTTP code: {}", c),
+            Error::IncompleteResponse { content_length, n_read } => {
+                write!(f, "Read {} bytes but HTTP response content-length header was {}.", n_read, content_length)
+            },
             Error::Timeout => f.write_str("Didn't receive response data in time, timed out."),
             Error::Json(ref e) => write!(f, "JSON error: {}", e),
         }
@@ -320,8 +366,9 @@ impl error::Error for Error {
             | HttpResponseBadHello { .. }
             | HttpResponseBadStatus(..)
             | HttpResponseBadContentLength(..)
-            | HttpParseError
+            | HttpResponseContentLengthTooLarge { .. }
             | HttpErrorCode(_)
+            | IncompleteResponse { .. }
             | Timeout => None,
             SocketError(ref e) => Some(e),
             Json(ref e) => Some(e),
