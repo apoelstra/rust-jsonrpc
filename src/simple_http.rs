@@ -10,7 +10,7 @@ use std::net::TcpStream;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use std::{error, fmt, io, net, thread};
+use std::{error, fmt, io, net, num, thread};
 
 use base64;
 use serde;
@@ -157,12 +157,21 @@ impl SimpleHttpTransport {
 
         // Parse first HTTP response header line
         let http_response = get_line(&mut reader, request_deadline)?;
-        if http_response.len() < 12 || !http_response.starts_with("HTTP/1.1 ") {
-            return Err(Error::HttpParseError);
+        if http_response.len() < 12 {
+            return Err(Error::HttpResponseTooShort { actual: http_response.len(), needed: 12 });
+        }
+        if !http_response.starts_with("HTTP/1.1 ") {
+            return Err(Error::HttpResponseBadHello {
+                actual: String::from_utf8_lossy(&http_response.as_bytes()[0..9]).into(),
+                expected: "HTTP/1.1 ".into(),
+            });
         }
         let response_code = match http_response[9..12].parse::<u16>() {
             Ok(n) => n,
-            Err(_) => return Err(Error::HttpParseError),
+            Err(e) => return Err(Error::HttpResponseBadStatus(
+                String::from_utf8_lossy(&http_response.as_bytes()[9..12]).into(),
+                e,
+            )),
         };
 
         // Parse response header fields
@@ -180,7 +189,7 @@ impl SimpleHttpTransport {
                     line[CONTENT_LENGTH.len()..]
                         .trim()
                         .parse::<usize>()
-                        .map_err(|_| Error::HttpParseError)?,
+                        .map_err(|e| Error::HttpResponseBadContentLength(line[CONTENT_LENGTH.len()..].into(), e))?
                 );
             }
         }
@@ -224,6 +233,24 @@ pub enum Error {
     },
     /// An error occurred on the socket layer.
     SocketError(io::Error),
+    /// The HTTP response was too short to even fit a HTTP 1.1 header
+    HttpResponseTooShort {
+        /// The total length of the response
+        actual: usize,
+        /// Minimum length we can parse
+        needed: usize,
+    },
+    /// The HTTP response did not start with HTTP/1.1
+    HttpResponseBadHello {
+        /// Actual HTTP-whatever string
+        actual: String,
+        /// The hello string of the HTTP version we support
+        expected: String,
+    },
+    /// Could not parse the status value as a number
+    HttpResponseBadStatus(String, num::ParseIntError),
+    /// Could not parse the status value as a number
+    HttpResponseBadContentLength(String, num::ParseIntError),
     /// The HTTP header of the response couldn't be parsed.
     HttpParseError,
     /// Unexpected HTTP error code (non-200).
@@ -252,6 +279,18 @@ impl fmt::Display for Error {
                 ref reason,
             } => write!(f, "invalid URL '{}': {}", url, reason),
             Error::SocketError(ref e) => write!(f, "Couldn't connect to host: {}", e),
+            Error::HttpResponseTooShort { ref actual, ref needed } => {
+                write!(f, "HTTP response too short: length {}, needed {}.", actual, needed)
+            },
+            Error::HttpResponseBadHello { ref actual, ref expected } => {
+                write!(f, "HTTP response started with `{}`; expected `{}`.", actual, expected)
+            },
+            Error::HttpResponseBadStatus(ref status, ref err) => {
+                write!(f, "HTTP response had bad status code `{}`: {}.", status, err)
+            },
+            Error::HttpResponseBadContentLength(ref len, ref err) => {
+                write!(f, "HTTP response had bad content length `{}`: {}.", len, err)
+            },
             Error::HttpParseError => f.write_str("Couldn't parse response header."),
             Error::HttpErrorCode(c) => write!(f, "unexpected HTTP code: {}", c),
             Error::Timeout => f.write_str("Didn't receive response data in time, timed out."),
@@ -268,6 +307,10 @@ impl error::Error for Error {
             InvalidUrl {
                 ..
             }
+            | HttpResponseTooShort { .. }
+            | HttpResponseBadHello { .. }
+            | HttpResponseBadStatus(..)
+            | HttpResponseBadContentLength(..)
             | HttpParseError
             | HttpErrorCode(_)
             | Timeout => None,
