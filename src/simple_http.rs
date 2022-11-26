@@ -64,8 +64,6 @@ pub const DEFAULT_PORT: u16 = 8332;
 /// The Default SOCKS5 Port to use for proxy connection.
 pub const DEFAULT_PROXY_PORT: u16 = 9050;
 
-/// Maximum size of the allocation we initially make for a response
-const INITIAL_RESP_ALLOC: u64 = 1024 * 1024;
 /// Absolute maximum content length we will allow before cutting off the response
 const FINAL_RESP_ALLOC: u64 = 1024 * 1024 * 1024;
 
@@ -251,35 +249,27 @@ impl SimpleHttpTransport {
         // Read up to `content_length` bytes. Note that if there is no content-length
         // header, we will assume an effectively infinite content length, i.e. we will
         // just keep reading from the socket until it is closed.
-        let buffer = match content_length {
-            None => {
-                let mut buffer = Vec::with_capacity(INITIAL_RESP_ALLOC as usize);
-                sock.take(FINAL_RESP_ALLOC).read_to_end(&mut buffer)?;
-                drop(sock_lock);
-                buffer
-            },
+        let mut reader = match content_length {
+            None => sock.take(FINAL_RESP_ALLOC),
             Some(n) if n > FINAL_RESP_ALLOC => {
                 return Err(Error::HttpResponseContentLengthTooLarge {
                     length: n,
                     max: FINAL_RESP_ALLOC,
                 });
             },
-            Some(n) => {
-                let mut buffer = Vec::with_capacity(INITIAL_RESP_ALLOC as usize);
-                let n_read = sock.take(n).read_to_end(&mut buffer)? as u64;
-                drop(sock_lock);
-                if n_read < n {
-                    return Err(Error::IncompleteResponse { content_length: n, n_read });
-                }
-                buffer
-            }
+            Some(n) => sock.take(n),
         };
 
         // Attempt to parse the response. Don't check the HTTP error code until
         // after parsing, since Bitcoin Core will often return a descriptive JSON
         // error structure which is more useful than the error code.
-        match serde_json::from_slice(&buffer) {
-            Ok(s) => Ok(s),
+        match serde_json::from_reader(&mut reader) {
+            Ok(s) => {
+                if content_length.is_some() {
+                    reader.bytes().count(); // consume any trailing bytes
+                }
+                Ok(s)
+            }
             Err(e) => {
                 // If the response was not 200, assume the parse failed because of that
                 if response_code != 200 {
