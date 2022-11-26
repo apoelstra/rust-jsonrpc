@@ -9,7 +9,7 @@ use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 #[cfg(not(fuzzing))]
 use std::net::TcpStream;
 use std::net::{SocketAddr, ToSocketAddrs};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 use std::{error, fmt, io, net, num, thread};
 
@@ -145,9 +145,9 @@ impl SimpleHttpTransport {
         // Open connection
         let request_deadline = Instant::now() + self.timeout;
         // No part of this codebase should panic, so unwrapping a mutex lock is fine
-        let mut sock = self.sock.lock().expect("poisoned mutex");
-        if sock.is_none() {
-            *sock = Some(BufReader::new({
+        let mut sock_lock: MutexGuard<Option<_>> = self.sock.lock().expect("poisoned mutex");
+        if sock_lock.is_none() {
+            *sock_lock = Some(BufReader::new({
                 #[cfg(feature = "proxy")]
                 {
                     if let Some((username, password)) = &self.proxy_auth {
@@ -174,7 +174,7 @@ impl SimpleHttpTransport {
         };
         // In the immediately preceding block, we made sure that `sock` is non-`None`,
         // so unwrapping here is fine.
-        let mut sock = sock.as_mut().unwrap();
+        let mut sock: &mut BufReader<_> = sock_lock.as_mut().unwrap();
 
         // Serialize the body first so we can set the Content-Length header.
         let body = serde_json::to_vec(&req)?;
@@ -254,8 +254,8 @@ impl SimpleHttpTransport {
         let buffer = match content_length {
             None => {
                 let mut buffer = Vec::with_capacity(INITIAL_RESP_ALLOC as usize);
-                // `take` consumes `sock` and drops it, unlocking the mutex
                 sock.take(FINAL_RESP_ALLOC).read_to_end(&mut buffer)?;
+                drop(sock_lock);
                 buffer
             },
             Some(n) if n > FINAL_RESP_ALLOC => {
@@ -266,8 +266,8 @@ impl SimpleHttpTransport {
             },
             Some(n) => {
                 let mut buffer = Vec::with_capacity(INITIAL_RESP_ALLOC as usize);
-                // `take` consumes `sock` and drops it, unlocking the mutex
                 let n_read = sock.take(n).read_to_end(&mut buffer)? as u64;
+                drop(sock_lock);
                 if n_read < n {
                     return Err(Error::IncompleteResponse { content_length: n, n_read });
                 }
