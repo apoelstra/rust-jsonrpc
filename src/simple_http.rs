@@ -10,8 +10,8 @@ use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::net::TcpStream;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::{Arc, Mutex, MutexGuard};
-use std::time::{Duration, Instant};
-use std::{error, fmt, io, net, num, thread};
+use std::time::Duration;
+use std::{error, fmt, io, net, num};
 
 use base64;
 use serde;
@@ -140,8 +140,6 @@ impl SimpleHttpTransport {
     where
         R: for<'a> serde::de::Deserialize<'a>,
     {
-        // Open connection
-        let request_deadline = Instant::now() + self.timeout;
         // No part of this codebase should panic, so unwrapping a mutex lock is fine
         let mut sock_lock: MutexGuard<Option<_>> = self.sock.lock().expect("poisoned mutex");
         if sock_lock.is_none() {
@@ -172,7 +170,7 @@ impl SimpleHttpTransport {
         };
         // In the immediately preceding block, we made sure that `sock` is non-`None`,
         // so unwrapping here is fine.
-        let mut sock: &mut BufReader<_> = sock_lock.as_mut().unwrap();
+        let sock: &mut BufReader<_> = sock_lock.as_mut().unwrap();
 
         // Serialize the body first so we can set the Content-Length header.
         let body = serde_json::to_vec(&req)?;
@@ -200,23 +198,24 @@ impl SimpleHttpTransport {
         }
 
         // Parse first HTTP response header line
-        let http_response = get_line(&mut sock, Instant::now() + self.timeout)?;
-        if http_response.len() < 12 {
-            return Err(Error::HttpResponseTooShort { actual: http_response.len(), needed: 12 });
+        let mut header_buf = String::new();
+        sock.read_line(&mut header_buf)?;
+        if header_buf.len() < 12 {
+            return Err(Error::HttpResponseTooShort { actual: header_buf.len(), needed: 12 });
         }
-        if !http_response.as_bytes()[..12].is_ascii() {
-            return Err(Error::HttpResponseNonAsciiHello(http_response.as_bytes()[..12].to_vec()));
+        if !header_buf.as_bytes()[..12].is_ascii() {
+            return Err(Error::HttpResponseNonAsciiHello(header_buf.as_bytes()[..12].to_vec()));
         }
-        if !http_response.starts_with("HTTP/1.1 ") {
+        if !header_buf.starts_with("HTTP/1.1 ") {
             return Err(Error::HttpResponseBadHello {
-                actual: http_response[0..9].into(),
+                actual: header_buf[0..9].into(),
                 expected: "HTTP/1.1 ".into(),
             });
         }
-        let response_code = match http_response[9..12].parse::<u16>() {
+        let response_code = match header_buf[9..12].parse::<u16>() {
             Ok(n) => n,
             Err(e) => return Err(Error::HttpResponseBadStatus(
-                http_response[9..12].into(),
+                header_buf[9..12].into(),
                 e,
             )),
         };
@@ -224,19 +223,20 @@ impl SimpleHttpTransport {
         // Parse response header fields
         let mut content_length = None;
         loop {
-            let mut line = get_line(&mut sock, request_deadline)?;
-            if line == "\r\n" {
+            header_buf.clear();
+            sock.read_line(&mut header_buf)?;
+            if header_buf == "\r\n" {
                 break;
             }
-            line.make_ascii_lowercase();
+            header_buf.make_ascii_lowercase();
 
             const CONTENT_LENGTH: &str = "content-length: ";
-            if line.starts_with(CONTENT_LENGTH) {
+            if header_buf.starts_with(CONTENT_LENGTH) {
                 content_length = Some(
-                    line[CONTENT_LENGTH.len()..]
+                    header_buf[CONTENT_LENGTH.len()..]
                         .trim()
                         .parse::<u64>()
-                        .map_err(|e| Error::HttpResponseBadContentLength(line[CONTENT_LENGTH.len()..].into(), e))?
+                        .map_err(|e| Error::HttpResponseBadContentLength(header_buf[CONTENT_LENGTH.len()..].into(), e))?
                 );
             }
         }
@@ -332,8 +332,6 @@ pub enum Error {
         /// The number of bytes we actually read
         n_read: u64,
     },
-    /// We didn't receive a complete response till the deadline ran out.
-    Timeout,
     /// JSON parsing error.
     Json(serde_json::Error),
 }
@@ -378,7 +376,6 @@ impl fmt::Display for Error {
             Error::IncompleteResponse { content_length, n_read } => {
                 write!(f, "Read {} bytes but HTTP response content-length header was {}.", n_read, content_length)
             },
-            Error::Timeout => f.write_str("Didn't receive response data in time, timed out."),
             Error::Json(ref e) => write!(f, "JSON error: {}", e),
         }
     }
@@ -399,8 +396,7 @@ impl error::Error for Error {
             | HttpResponseBadContentLength(..)
             | HttpResponseContentLengthTooLarge { .. }
             | HttpErrorCode(_)
-            | IncompleteResponse { .. }
-            | Timeout => None,
+            | IncompleteResponse { .. } => None,
             SocketError(ref e) => Some(e),
             Json(ref e) => Some(e),
         }
@@ -426,23 +422,6 @@ impl From<Error> for crate::Error {
             e => crate::Error::Transport(Box::new(e)),
         }
     }
-}
-
-/// Tries to read a line from a buffered reader. If no line can be read till the deadline is reached
-/// returns a timeout error.
-fn get_line<R: BufRead>(reader: &mut R, deadline: Instant) -> Result<String, Error> {
-    let mut line = String::new();
-    while deadline > Instant::now() {
-        match reader.read_line(&mut line) {
-            // EOF reached for now, try again later
-            Ok(0) => thread::sleep(Duration::from_millis(5)),
-            // received useful data, return it
-            Ok(_) => return Ok(line),
-            // io error occurred, abort
-            Err(e) => return Err(Error::SocketError(e)),
-        }
-    }
-    Err(Error::Timeout)
 }
 
 /// Does some very basic manual URL parsing because the uri/url crates
