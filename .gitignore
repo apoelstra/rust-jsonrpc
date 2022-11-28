@@ -1,3 +1,5 @@
 target
 Cargo.lock
 
+fuzz/hfuzz_workspace/
+fuzz/hfuzz_target/
