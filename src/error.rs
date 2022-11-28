@@ -26,6 +26,7 @@ use crate::Response;
 
 /// A library error
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// A transport error
     Transport(Box<dyn error::Error + Send + Sync>),
