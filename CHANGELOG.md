@@ -1,4 +1,23 @@
-# 0.13.0 - 2022-17-21 "Edition 2018 Release"
+# 0.14.0 - 2022-11-28
+
+This release significantly improves our `simple_http` client, though at the
+apparent cost of a performance regression when making repeated RPC calls to
+a local bitcoind. We are unsure what to make of this, since our code now uses
+fewer sockets, less memory and does less redundant processing.
+
+The highlights are:
+
+* Support JSON replies that span multiple lines
+  [#70](https://github.com/apoelstra/rust-jsonrpc/pull/69)
+* Add feature-gated support for using a SOCKS proxy
+  [#70](https://github.com/apoelstra/rust-jsonrpc/pull/70)
+* Fix resource exhaustive bug on MacOS by reusing sockets
+  [#72](https://github.com/apoelstra/rust-jsonrpc/pull/72)
+  [#76](https://github.com/apoelstra/rust-jsonrpc/pull/76)
+
+As well as improvements to our code quality and test infrastructure.
+
+# 0.13.0 - 2022-07-21 "Edition 2018 Release"
 
 This release increases the MSRV to 1.41.1, bringing with it a bunch of new language features.
 
