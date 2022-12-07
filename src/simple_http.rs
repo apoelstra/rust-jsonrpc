@@ -263,7 +263,9 @@ impl SimpleHttpTransport {
         // Attempt to parse the response. Don't check the HTTP error code until
         // after parsing, since Bitcoin Core will often return a descriptive JSON
         // error structure which is more useful than the error code.
-        match serde_json::from_reader(&mut reader) {
+        let mut response_buf = String::new();
+        reader.read_line(&mut response_buf)?;
+        match serde_json::from_str(&response_buf) {
             Ok(s) => {
                 if content_length.is_some() {
                     reader.bytes().count(); // consume any trailing bytes
