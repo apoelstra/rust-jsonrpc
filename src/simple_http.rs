@@ -177,7 +177,7 @@ impl SimpleHttpTransport {
 
         // Send HTTP request
         {
-            let mut sock = BufWriter::new(sock.get_ref());
+            let mut sock = BufWriter::new(sock.get_mut());
             sock.write_all(b"POST ")?;
             sock.write_all(self.path.as_bytes())?;
             sock.write_all(b" HTTP/1.1\r\n")?;
