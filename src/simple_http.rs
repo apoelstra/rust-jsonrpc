@@ -178,7 +178,18 @@ impl SimpleHttpTransport {
         // Send HTTP request
         {
             let mut write_sock = BufWriter::new(sock.get_mut());
-            write_sock.write_all(b"POST ")?;
+            // When we write to a socket, it may have died but we do not detect it. In this case we
+            // want to detect this ASAP and reconnect. We do this by writing the literal text POST
+            // in two pieces and checking for error returns on either one, and retrying in this
+            // case.
+            //
+            // From http://www.softlab.ntua.gr/facilities/documentation/unix/unix-socket-faq/unix-socket-faq-2.html
+            // "If the peer calls close() or exits...I would expect EPIPE, not on the next call,
+            // but the one after."
+            if write_sock.write_all(b"PO").is_err() || write_sock.write_all(b"ST ").is_err() {
+                **write_sock.get_mut() = self.fresh_socket()?;
+                write_sock.write_all(b"POST ")?;
+            }
             write_sock.write_all(self.path.as_bytes())?;
             write_sock.write_all(b" HTTP/1.1\r\n")?;
             // Write headers
