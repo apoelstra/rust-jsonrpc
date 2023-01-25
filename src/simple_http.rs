@@ -133,6 +133,29 @@ impl SimpleHttpTransport {
         }
     }
 
+    #[cfg(feature = "proxy")]
+    fn fresh_socket(&self) -> Result<TcpStream, Error> {
+        let stream = if let Some((username, password)) = &self.proxy_auth {
+            Socks5Stream::connect_with_password(
+                self.proxy_addr,
+                self.addr,
+                username.as_str(),
+                password.as_str(),
+            )?
+        } else {
+            Socks5Stream::connect(self.proxy_addr, self.addr)?
+        };
+        Ok(stream.into_inner())
+    }
+
+    #[cfg(not(feature = "proxy"))]
+    fn fresh_socket(&self) -> Result<TcpStream, Error> {
+        let stream = TcpStream::connect_timeout(&self.addr, self.timeout)?;
+        stream.set_read_timeout(Some(self.timeout))?;
+        stream.set_write_timeout(Some(self.timeout))?;
+        Ok(stream)
+    }
+
     fn try_request<R>(
         &self,
         req: impl serde::Serialize,
@@ -143,30 +166,7 @@ impl SimpleHttpTransport {
         // No part of this codebase should panic, so unwrapping a mutex lock is fine
         let mut sock_lock: MutexGuard<Option<_>> = self.sock.lock().expect("poisoned mutex");
         if sock_lock.is_none() {
-            *sock_lock = Some(BufReader::new({
-                #[cfg(feature = "proxy")]
-                {
-                    if let Some((username, password)) = &self.proxy_auth {
-                        Socks5Stream::connect_with_password(
-                            self.proxy_addr,
-                            self.addr,
-                            username.as_str(),
-                            password.as_str(),
-                        )?
-                        .into_inner()
-                    } else {
-                        Socks5Stream::connect(self.proxy_addr, self.addr)?.into_inner()
-                    }
-                }
-
-                #[cfg(not(feature = "proxy"))]
-                {
-                    let stream = TcpStream::connect_timeout(&self.addr, self.timeout)?;
-                    stream.set_read_timeout(Some(self.timeout))?;
-                    stream.set_write_timeout(Some(self.timeout))?;
-                    stream
-                }
-            }));
+            *sock_lock = Some(BufReader::new(self.fresh_socket()?));
         };
         // In the immediately preceding block, we made sure that `sock` is non-`None`,
         // so unwrapping here is fine.
