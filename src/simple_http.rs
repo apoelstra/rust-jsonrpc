@@ -177,24 +177,24 @@ impl SimpleHttpTransport {
 
         // Send HTTP request
         {
-            let mut sock = BufWriter::new(sock.get_mut());
-            sock.write_all(b"POST ")?;
-            sock.write_all(self.path.as_bytes())?;
-            sock.write_all(b" HTTP/1.1\r\n")?;
+            let mut write_sock = BufWriter::new(sock.get_mut());
+            write_sock.write_all(b"POST ")?;
+            write_sock.write_all(self.path.as_bytes())?;
+            write_sock.write_all(b" HTTP/1.1\r\n")?;
             // Write headers
-            sock.write_all(b"Content-Type: application/json\r\n")?;
-            sock.write_all(b"Content-Length: ")?;
-            sock.write_all(body.len().to_string().as_bytes())?;
-            sock.write_all(b"\r\n")?;
+            write_sock.write_all(b"Content-Type: application/json\r\n")?;
+            write_sock.write_all(b"Content-Length: ")?;
+            write_sock.write_all(body.len().to_string().as_bytes())?;
+            write_sock.write_all(b"\r\n")?;
             if let Some(ref auth) = self.basic_auth {
-                sock.write_all(b"Authorization: ")?;
-                sock.write_all(auth.as_ref())?;
-                sock.write_all(b"\r\n")?;
+                write_sock.write_all(b"Authorization: ")?;
+                write_sock.write_all(auth.as_ref())?;
+                write_sock.write_all(b"\r\n")?;
             }
             // Write body
-            sock.write_all(b"\r\n")?;
-            sock.write_all(&body)?;
-            sock.flush()?;
+            write_sock.write_all(b"\r\n")?;
+            write_sock.write_all(&body)?;
+            write_sock.flush()?;
         }
 
         // Parse first HTTP response header line
