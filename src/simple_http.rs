@@ -193,6 +193,9 @@ impl SimpleHttpTransport {
             write_sock.write_all(self.path.as_bytes())?;
             write_sock.write_all(b" HTTP/1.1\r\n")?;
             // Write headers
+            write_sock.write_all(b"host: ")?;
+            write_sock.write_all(self.addr.to_string().as_bytes())?;
+            write_sock.write_all(b"\r\n")?;
             write_sock.write_all(b"Content-Type: application/json\r\n")?;
             write_sock.write_all(b"Content-Length: ")?;
             write_sock.write_all(body.len().to_string().as_bytes())?;
