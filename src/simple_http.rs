@@ -5,7 +5,7 @@
 
 #[cfg(feature = "proxy")]
 use socks::Socks5Stream;
-use std::io::{BufRead, BufReader, BufWriter, Read, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 #[cfg(not(fuzzing))]
 use std::net::TcpStream;
 use std::net::{SocketAddr, ToSocketAddrs};
@@ -175,45 +175,45 @@ impl SimpleHttpTransport {
         // Serialize the body first so we can set the Content-Length header.
         let body = serde_json::to_vec(&req)?;
 
-        // Send HTTP request
-        {
-            let mut write_sock = BufWriter::new(sock.get_mut());
-            // When we write to a socket, it may have died but we do not detect it. In this case we
-            // want to detect this ASAP and reconnect. We do this by writing the literal text POST
-            // in two pieces and checking for error returns on either one, and retrying in this
-            // case.
-            //
-            // From http://www.softlab.ntua.gr/facilities/documentation/unix/unix-socket-faq/unix-socket-faq-2.html
-            // "If the peer calls close() or exits...I would expect EPIPE, not on the next call,
-            // but the one after."
-            if write_sock.write_all(b"PO").is_err() || write_sock.write_all(b"ST ").is_err() {
-                **write_sock.get_mut() = self.fresh_socket()?;
-                write_sock.write_all(b"POST ")?;
-            }
-            write_sock.write_all(self.path.as_bytes())?;
-            write_sock.write_all(b" HTTP/1.1\r\n")?;
-            // Write headers
-            write_sock.write_all(b"host: ")?;
-            write_sock.write_all(self.addr.to_string().as_bytes())?;
-            write_sock.write_all(b"\r\n")?;
-            write_sock.write_all(b"Content-Type: application/json\r\n")?;
-            write_sock.write_all(b"Content-Length: ")?;
-            write_sock.write_all(body.len().to_string().as_bytes())?;
-            write_sock.write_all(b"\r\n")?;
-            if let Some(ref auth) = self.basic_auth {
-                write_sock.write_all(b"Authorization: ")?;
-                write_sock.write_all(auth.as_ref())?;
-                write_sock.write_all(b"\r\n")?;
-            }
-            // Write body
-            write_sock.write_all(b"\r\n")?;
-            write_sock.write_all(&body)?;
-            write_sock.flush()?;
+        let mut request_bytes = Vec::new();
+
+        request_bytes.write_all(b"POST ")?;
+        request_bytes.write_all(self.path.as_bytes())?;
+        request_bytes.write_all(b" HTTP/1.1\r\n")?;
+        // Write headers
+        request_bytes.write_all(b"host: ")?;
+        request_bytes.write_all(self.addr.to_string().as_bytes())?;
+        request_bytes.write_all(b"\r\n")?;
+        request_bytes.write_all(b"Content-Type: application/json\r\n")?;
+        request_bytes.write_all(b"Content-Length: ")?;
+        request_bytes.write_all(body.len().to_string().as_bytes())?;
+        request_bytes.write_all(b"\r\n")?;
+        if let Some(ref auth) = self.basic_auth {
+            request_bytes.write_all(b"Authorization: ")?;
+            request_bytes.write_all(auth.as_ref())?;
+            request_bytes.write_all(b"\r\n")?;
         }
+        // Write body
+        request_bytes.write_all(b"\r\n")?;
+        request_bytes.write_all(&body)?;
+
+        // Send HTTP request
+        sock.get_mut().write_all(request_bytes.as_slice())?;
+        sock.get_mut().flush()?;
 
         // Parse first HTTP response header line
         let mut header_buf = String::new();
         sock.read_line(&mut header_buf)?;
+
+        // This indicates the socket is broken so lets retry the send once with a fresh socket
+        if header_buf.is_empty() {
+            *sock.get_mut() = self.fresh_socket()?;
+            sock.get_mut().write_all(request_bytes.as_slice())?;
+            sock.get_mut().flush()?;
+
+            sock.read_line(&mut header_buf)?;
+        }
+
         if header_buf.len() < 12 {
             return Err(Error::HttpResponseTooShort { actual: header_buf.len(), needed: 12 });
         }
