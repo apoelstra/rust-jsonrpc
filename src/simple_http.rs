@@ -622,9 +622,11 @@ impl crate::Client {
 
 #[cfg(test)]
 mod tests {
-    use std::net;
+    use serde_json::{Number, Value};
+    use std::net::{Shutdown, TcpListener};
     #[cfg(feature = "proxy")]
     use std::str::FromStr;
+    use std::{net, thread};
 
     use super::*;
     use crate::Client;
@@ -724,5 +726,58 @@ mod tests {
             Some(("user", "password")),
         )
         .unwrap();
+    }
+
+    /// Test that the client will detect that a socket is closed and open a fresh one before sending
+    /// the request
+    #[cfg(not(feature = "proxy"))]
+    #[test]
+    fn request_to_closed_socket() {
+        thread::spawn(move || {
+            let server = TcpListener::bind("localhost:2222").expect("Binding a Tcp Listener");
+
+            for (request_id, stream) in server.incoming().enumerate() {
+                let mut stream = stream.unwrap();
+
+                let buf_reader = BufReader::new(&mut stream);
+
+                let _http_request: Vec<_> = buf_reader
+                    .lines()
+                    .map(|result| result.unwrap())
+                    .take_while(|line| !line.is_empty())
+                    .collect();
+
+                let response = Response {
+                    result: None,
+                    error: None,
+                    id: Value::Number(Number::from(request_id)),
+                    jsonrpc: Some(String::from("2.0")),
+                };
+                let response_str = serde_json::to_string(&response).unwrap();
+
+                stream.write_all(b"HTTP/1.1 200\r\n").unwrap();
+                stream.write_all(b"Content-Length: ").unwrap();
+                stream.write_all(response_str.len().to_string().as_bytes()).unwrap();
+                stream.write_all(b"\r\n").unwrap();
+                stream.write_all(b"\r\n").unwrap();
+                stream.write_all(response_str.as_bytes()).unwrap();
+                stream.flush().unwrap();
+
+                stream.shutdown(Shutdown::Both).unwrap();
+            }
+        });
+
+        // Give the server thread a second to start up and listen
+        thread::sleep(Duration::from_secs(1));
+
+        let client = Client::simple_http("localhost:2222", None, None).unwrap();
+        let request = client.build_request("test_request", &[]);
+        let result = client.send_request(request).unwrap();
+        assert_eq!(result.id, Value::Number(Number::from(0)));
+        thread::sleep(Duration::from_secs(1));
+        let request = client.build_request("test_request2", &[]);
+        let result2 = client.send_request(request)
+            .expect("This second request should not be an Err like `Err(Transport(HttpResponseTooShort { actual: 0, needed: 12 }))`");
+        assert_eq!(result2.id, Value::Number(Number::from(1)));
     }
 }
