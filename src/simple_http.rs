@@ -627,6 +627,7 @@ mod tests {
     #[cfg(feature = "proxy")]
     use std::str::FromStr;
     use std::{net, thread};
+    use std::sync::mpsc::sync_channel;
 
     use super::*;
     use crate::Client;
@@ -733,9 +734,11 @@ mod tests {
     #[cfg(not(feature = "proxy"))]
     #[test]
     fn request_to_closed_socket() {
-        thread::spawn(move || {
-            let server = TcpListener::bind("localhost:2222").expect("Binding a Tcp Listener");
+        let (tx,rx) = sync_channel(1);
 
+        thread::spawn(move || {
+            let server = TcpListener::bind("localhost:0").expect("Binding a Tcp Listener");
+            tx.send(server.local_addr().unwrap().port()).unwrap();
             for (request_id, stream) in server.incoming().enumerate() {
                 let mut stream = stream.unwrap();
 
@@ -770,7 +773,8 @@ mod tests {
         // Give the server thread a second to start up and listen
         thread::sleep(Duration::from_secs(1));
 
-        let client = Client::simple_http("localhost:2222", None, None).unwrap();
+        let port = rx.recv().unwrap();
+        let client = Client::simple_http(format!("localhost:{}", port).as_str(), None, None).unwrap();
         let request = client.build_request("test_request", &[]);
         let result = client.send_request(request).unwrap();
         assert_eq!(result.id, Value::Number(Number::from(0)));
