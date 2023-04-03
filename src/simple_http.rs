@@ -119,6 +119,19 @@ impl SimpleHttpTransport {
         Builder::new()
     }
 
+    /// Replaces the URL of the transport
+    pub fn set_url(&mut self, url: &str) -> Result<(), Error> {
+        let url = check_url(url)?;
+        self.addr = url.0;
+        self.path = url.1;
+        Ok(())
+    }
+
+    /// Replaces only the path part of the URL
+    pub fn set_url_path(&mut self, path: String) {
+        self.path = path;
+    }
+
     fn request<R>(&self, req: impl serde::Serialize) -> Result<R, Error>
     where
         R: for<'a> serde::de::Deserialize<'a>,
@@ -533,9 +546,7 @@ impl Builder {
 
     /// Sets the URL of the server to the transport.
     pub fn url(mut self, url: &str) -> Result<Self, Error> {
-        let url = check_url(url)?;
-        self.tp.addr = url.0;
-        self.tp.path = url.1;
+        self.tp.set_url(url)?;
         Ok(self)
     }
 

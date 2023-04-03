@@ -1,3 +1,13 @@
+# 0.14.1 - 2023-04-03
+
+* simple_http: fix "re-open socket on write failure" behavior
+  [#84](https://github.com/apoelstra/rust-jsonrpc/pull/84)
+  [#86](https://github.com/apoelstra/rust-jsonrpc/pull/86)
+* simple_http: add "host" header (required by HTTP 1.1)
+  [#85](https://github.com/apoelstra/rust-jsonrpc/pull/85)
+* simple_http: add ability to replace URL/path; minor ergonomic improvements
+  [#89](https://github.com/apoelstra/rust-jsonrpc/pull/89)
+
 # 0.14.0 - 2022-11-28
 
 This release significantly improves our `simple_http` client, though at the

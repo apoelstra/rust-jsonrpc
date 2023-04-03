@@ -1,6 +1,6 @@
 [package]
 name = "jsonrpc"
-version = "0.14.0"
+version = "0.14.1"
 authors = ["Andrew Poelstra <apoelstra@wpsoftware.net>"]
 license = "CC0-1.0"
 homepage = "https://github.com/apoelstra/rust-jsonrpc/"
@@ -10,6 +10,10 @@ description = "Rust support for the JSON-RPC 2.0 protocol"
 keywords = [ "protocol", "json", "http", "jsonrpc" ]
 readme	 = "README.md"
 edition = "2018"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [lib]
 name = "jsonrpc"
