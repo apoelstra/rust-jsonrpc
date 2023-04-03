@@ -11,6 +11,10 @@ keywords = [ "protocol", "json", "http", "jsonrpc" ]
 readme	 = "README.md"
 edition = "2018"
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [lib]
 name = "jsonrpc"
 path = "src/lib.rs"
