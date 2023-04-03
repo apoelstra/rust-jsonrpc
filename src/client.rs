@@ -155,6 +155,12 @@ impl fmt::Debug for crate::Client {
     }
 }
 
+impl<T: Transport> From<T> for Client {
+    fn from(t: T) -> Client {
+        Client::with_transport(t)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
