@@ -211,15 +211,23 @@ impl SimpleHttpTransport {
         request_bytes.write_all(&body)?;
 
         // Send HTTP request
-        sock.get_mut().write_all(request_bytes.as_slice())?;
-        sock.get_mut().flush()?;
+        let write_success = sock.get_mut().write_all(request_bytes.as_slice()).is_ok()
+            && sock.get_mut().flush().is_ok();
+
+        // This indicates the socket is broken so let's retry the send once with a fresh socket
+        if !write_success {
+            *sock.get_mut() = self.fresh_socket()?;
+            sock.get_mut().write_all(request_bytes.as_slice())?;
+            sock.get_mut().flush()?;
+        }
 
         // Parse first HTTP response header line
         let mut header_buf = String::new();
-        sock.read_line(&mut header_buf)?;
+        let read_success = sock.read_line(&mut header_buf).is_ok();
 
-        // This indicates the socket is broken so lets retry the send once with a fresh socket
-        if header_buf.is_empty() {
+        // This is another possible indication that the socket is broken so let's retry the send once
+        // with a fresh socket IF the write attempt has not already experienced a failure
+        if (!read_success || header_buf.is_empty()) && write_success {
             *sock.get_mut() = self.fresh_socket()?;
             sock.get_mut().write_all(request_bytes.as_slice())?;
             sock.get_mut().flush()?;
