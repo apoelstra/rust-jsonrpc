@@ -11,14 +11,14 @@ use std::net::TcpStream;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
-use std::{error, fmt, io, net, num};
+use std::{fmt, io, net, num};
 
 use base64;
 use serde;
 use serde_json;
 
-use crate::client::Transport;
-use crate::{Request, Response};
+use crate::json;
+use crate::{Client, SyncTransport};
 
 #[cfg(fuzzing)]
 /// Global mutex used by the fuzzing harness to inject data into the read
@@ -55,7 +55,6 @@ mod impls {
         pub fn set_write_timeout(&self, _: Option<Duration>) -> io::Result<()> { Ok(()) }
     }
 }
-
 
 /// The default TCP port to use for connections.
 /// Set to 8332, the default RPC port for bitcoind.
@@ -416,8 +415,8 @@ impl fmt::Display for Error {
     }
 }
 
-impl error::Error for Error {
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         use self::Error::*;
 
         match *self {
@@ -518,17 +517,13 @@ fn check_url(url: &str) -> Result<(SocketAddr, String), Error> {
     }
 }
 
-impl Transport for SimpleHttpTransport {
-    fn send_request(&self, req: Request) -> Result<Response, crate::Error> {
+impl SyncTransport for SimpleHttpTransport {
+    fn send_request(&self, req: &json::Request) -> Result<json::Response, crate::Error> {
         Ok(self.request(req)?)
     }
 
-    fn send_batch(&self, reqs: &[Request]) -> Result<Vec<Response>, crate::Error> {
+    fn send_batch(&self, reqs: &[json::Request]) -> Result<Vec<json::Response>, crate::Error> {
         Ok(self.request(reqs)?)
-    }
-
-    fn fmt_target(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "http://{}:{}{}", self.addr.ip(), self.addr.port(), self.path)
     }
 }
 
@@ -558,8 +553,8 @@ impl Builder {
         Ok(self)
     }
 
-    /// Adds authentication information to the transport.
-    pub fn auth<S: AsRef<str>>(mut self, user: S, pass: Option<S>) -> Self {
+    /// Add authentication information to the transport.
+    pub fn auth(mut self, user: impl AsRef<str>, pass: Option<impl AsRef<str>>) -> Self {
         let mut auth = user.as_ref().to_owned();
         auth.push(':');
         if let Some(ref pass) = pass {
@@ -603,29 +598,32 @@ impl Default for Builder {
     }
 }
 
-impl crate::Client {
-    /// Creates a new JSON-RPC client using a bare-minimum HTTP transport.
-    pub fn simple_http(
+/// A client using the [SimpleHttpTransport] transport.
+pub type SimpleHttpClient = Client<SimpleHttpTransport>;
+
+impl Client<SimpleHttpTransport> {
+    /// Create a new JSON-RPC client using a bare-minimum HTTP transport.
+    pub fn with_simple_http(
         url: &str,
         user: Option<String>,
         pass: Option<String>,
-    ) -> Result<crate::Client, Error> {
-        let mut builder = Builder::new().url(url)?;
+    ) -> Result<Client<SimpleHttpTransport>, Error> {
+        let mut builder = Builder::new().url(&url)?;
         if let Some(user) = user {
             builder = builder.auth(user, pass);
         }
-        Ok(crate::Client::with_transport(builder.build()))
+        Ok(Client::new(builder.build()))
     }
 
     #[cfg(feature = "proxy")]
     /// Creates a new JSON_RPC client using a HTTP-Socks5 proxy transport.
-    pub fn http_proxy(
+    pub fn with_simple_http_and_http_proxy(
         url: &str,
         user: Option<String>,
         pass: Option<String>,
         proxy_addr: &str,
         proxy_auth: Option<(&str, &str)>,
-    ) -> Result<crate::Client, Error> {
+    ) -> Result<Client<SimpleHttpTransport>, Error> {
         let mut builder = Builder::new().url(url)?;
         if let Some(user) = user {
             builder = builder.auth(user, pass);
@@ -634,8 +632,7 @@ impl crate::Client {
         if let Some((user, pass)) = proxy_auth {
             builder = builder.proxy_auth(user, pass);
         }
-        let tp = builder.build();
-        Ok(crate::Client::with_transport(tp))
+        Ok(Client::new(builder.build()))
     }
 }
 

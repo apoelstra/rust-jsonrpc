@@ -1,14 +1,15 @@
-//! This module implements a synchronous transport over a raw TcpListener.
-//!
+//! This module implements a synchronous transport over a raw Unix socket.
 
+use std::{fmt, io};
 use std::os::unix::net::UnixStream;
-use std::{error, fmt, io, path, time};
+use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use serde;
 use serde_json;
 
-use crate::client::Transport;
-use crate::{Request, Response};
+use crate::client::{Client, SyncTransport};
+use crate::json;
 
 /// Error that can occur while using the UDS transport.
 #[derive(Debug)]
@@ -31,8 +32,8 @@ impl fmt::Display for Error {
     }
 }
 
-impl error::Error for Error {
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         use self::Error::*;
 
         match *self {
@@ -55,30 +56,38 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-impl From<Error> for crate::error::Error {
-    fn from(e: Error) -> crate::error::Error {
+impl From<Error> for crate::Error {
+    fn from(e: Error) -> crate::Error {
         match e {
-            Error::Json(e) => crate::error::Error::Json(e),
-            e => crate::error::Error::Transport(Box::new(e)),
+            Error::Json(e) => crate::Error::Json(e),
+            e => crate::Error::Transport(Box::new(e)),
         }
     }
 }
 
 /// Simple synchronous UDS transport.
 #[derive(Debug, Clone)]
-pub struct UdsTransport {
-    /// The path to the Unix Domain Socket.
-    pub sockpath: path::PathBuf,
-    /// The read and write timeout to use.
-    pub timeout: Option<time::Duration>,
+pub struct SimpleUdsTransport {
+    /// The path to the Unix Domain Socket
+    pub sockpath: PathBuf,
+    /// The read and write timeout to use
+    pub timeout: Option<Duration>,
 }
 
-impl UdsTransport {
-    /// Creates a new [`UdsTransport`] without timeouts to use.
-    pub fn new<P: AsRef<path::Path>>(sockpath: P) -> UdsTransport {
-        UdsTransport {
+impl SimpleUdsTransport {
+    /// Create a new [SimpleUdsTransport] without timeouts to use
+    pub fn new(sockpath: impl AsRef<Path>) -> SimpleUdsTransport {
+        SimpleUdsTransport {
             sockpath: sockpath.as_ref().to_path_buf(),
             timeout: None,
+        }
+    }
+
+    /// Create a new [SimpleUdsTransport] without timeouts to use
+    pub fn with_timeout(sockpath: impl AsRef<Path>, timeout: Duration) -> SimpleUdsTransport {
+        SimpleUdsTransport {
+            sockpath: sockpath.as_ref().to_path_buf(),
+            timeout: Some(timeout),
         }
     }
 
@@ -101,17 +110,25 @@ impl UdsTransport {
     }
 }
 
-impl Transport for UdsTransport {
-    fn send_request(&self, req: Request) -> Result<Response, crate::error::Error> {
+impl SyncTransport for SimpleUdsTransport {
+    fn send_request(&self, req: &json::Request) -> Result<json::Response, crate::Error> {
         Ok(self.request(req)?)
     }
 
-    fn send_batch(&self, reqs: &[Request]) -> Result<Vec<Response>, crate::error::Error> {
+    fn send_batch(&self, reqs: &[json::Request]) -> Result<Vec<json::Response>, crate::Error> {
         Ok(self.request(reqs)?)
     }
+}
 
-    fn fmt_target(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.sockpath.to_string_lossy())
+/// A client using the [SimpleTcpTransport] transport.
+pub type SimpleUdsClient = Client<SimpleUdsTransport>;
+
+impl Client<SimpleUdsTransport> {
+    /// Create a new JSON-RPC client using a bare-minimum UDS transport.
+    pub fn with_simple_uds<P: AsRef<Path>>(
+        socket_path: P,
+    ) -> Client<SimpleUdsTransport> {
+        Client::new(SimpleUdsTransport::new(socket_path))
     }
 }
 
@@ -130,31 +147,31 @@ mod tests {
     // Test a dummy request / response over an UDS
     #[test]
     fn sanity_check_uds_transport() {
-        let socket_path: path::PathBuf = format!("uds_scratch_{}.socket", process::id()).into();
+        let socket_path = PathBuf::from(format!("uds_scratch_{}.socket", process::id()));
         // Any leftover?
         fs::remove_file(&socket_path).unwrap_or(());
 
         let server = UnixListener::bind(&socket_path).unwrap();
-        let dummy_req = Request {
+        let dummy_req = json::Request {
             method: "getinfo",
             params: &[],
-            id: serde_json::Value::Number(111.into()),
-            jsonrpc: Some("2.0"),
+            id: serde_json::Value::Number(111usize.into()),
+            jsonrpc: Some("2.0".into()),
         };
         let dummy_req_ser = serde_json::to_vec(&dummy_req).unwrap();
-        let dummy_resp = Response {
+        let dummy_resp = json::Response {
             result: None,
             error: None,
-            id: serde_json::Value::Number(111.into()),
+            id: serde_json::Value::Number(111usize.into()),
             jsonrpc: Some("2.0".into()),
         };
         let dummy_resp_ser = serde_json::to_vec(&dummy_resp).unwrap();
 
         let cli_socket_path = socket_path.clone();
         let client_thread = thread::spawn(move || {
-            let transport = UdsTransport {
+            let transport = SimpleUdsTransport {
                 sockpath: cli_socket_path,
-                timeout: Some(time::Duration::from_secs(5)),
+                timeout: Some(Duration::from_secs(5)),
             };
             let client = Client::with_transport(transport);
 
@@ -162,7 +179,7 @@ mod tests {
         });
 
         let (mut stream, _) = server.accept().unwrap();
-        stream.set_read_timeout(Some(time::Duration::from_secs(5))).unwrap();
+        stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
         let mut recv_req = vec![0; dummy_req_ser.len()];
         let mut read = 0;
         while read < dummy_req_ser.len() {

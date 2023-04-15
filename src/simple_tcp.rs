@@ -2,13 +2,14 @@
 //! it does not handle TCP over Unix Domain Sockets, see `simple_uds` for this.
 //!
 
-use std::{error, fmt, io, net, time};
+use std::{fmt, io, net};
+use std::time::Duration;
 
 use serde;
 use serde_json;
 
-use crate::client::Transport;
-use crate::{Request, Response};
+use crate::client::{Client, SyncTransport};
+use crate::json;
 
 /// Error that can occur while using the TCP transport.
 #[derive(Debug)]
@@ -31,8 +32,8 @@ impl fmt::Display for Error {
     }
 }
 
-impl error::Error for Error {
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         use self::Error::*;
 
         match *self {
@@ -66,17 +67,25 @@ impl From<Error> for crate::Error {
 
 /// Simple synchronous TCP transport.
 #[derive(Debug, Clone)]
-pub struct TcpTransport {
-    /// The internet socket address to connect to.
+pub struct SimpleTcpTransport {
+    /// The internet socket address to connect to
     pub addr: net::SocketAddr,
-    /// The read and write timeout to use for this connection.
-    pub timeout: Option<time::Duration>,
+    /// The read and write timeout to use for this connection
+    pub timeout: Option<Duration>,
 }
 
-impl TcpTransport {
-    /// Creates a new TcpTransport without timeouts.
-    pub fn new(addr: net::SocketAddr) -> TcpTransport {
-        TcpTransport {
+impl SimpleTcpTransport {
+    /// Create a new [SimpleTcpTransport] without timeouts
+    pub fn with_timeout(addr: net::SocketAddr, timeout: Duration) -> SimpleTcpTransport {
+        SimpleTcpTransport {
+            addr,
+            timeout: Some(timeout),
+        }
+    }
+
+    /// Create a new [SimpleTcpTransport] without timeouts
+    pub fn new(addr: net::SocketAddr) -> SimpleTcpTransport {
+        SimpleTcpTransport {
             addr,
             timeout: None,
         }
@@ -101,17 +110,25 @@ impl TcpTransport {
     }
 }
 
-impl Transport for TcpTransport {
-    fn send_request(&self, req: Request) -> Result<Response, crate::Error> {
+impl SyncTransport for SimpleTcpTransport {
+    fn send_request(&self, req: &json::Request) -> Result<json::Response, crate::Error> {
         Ok(self.request(req)?)
     }
 
-    fn send_batch(&self, reqs: &[Request]) -> Result<Vec<Response>, crate::Error> {
+    fn send_batch(&self, reqs: &[json::Request]) -> Result<Vec<json::Response>, crate::Error> {
         Ok(self.request(reqs)?)
     }
+}
 
-    fn fmt_target(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.addr)
+/// A client using the [SimpleTcpTransport] transport.
+pub type SimpleTcpClient = Client<SimpleTcpTransport>;
+
+impl Client<SimpleTcpTransport> {
+    /// Create a new JSON-RPC client using a bare-minimum TCP transport.
+    pub fn with_simple_tcp(
+        socket_addr: net::SocketAddr
+    ) -> Client<SimpleTcpTransport> {
+        Client::new(SimpleTcpTransport::new(socket_addr))
     }
 }
 
@@ -132,14 +149,14 @@ mod tests {
             net::SocketAddrV4::new(net::Ipv4Addr::new(127, 0, 0, 1), 0).into();
         let server = net::TcpListener::bind(addr).unwrap();
         let addr = server.local_addr().unwrap();
-        let dummy_req = Request {
+        let dummy_req = json::Request {
             method: "arandommethod",
             params: &[],
             id: serde_json::Value::Number(4242242.into()),
             jsonrpc: Some("2.0"),
         };
         let dummy_req_ser = serde_json::to_vec(&dummy_req).unwrap();
-        let dummy_resp = Response {
+        let dummy_resp = json::Response {
             result: None,
             error: None,
             id: serde_json::Value::Number(4242242.into()),
@@ -148,9 +165,9 @@ mod tests {
         let dummy_resp_ser = serde_json::to_vec(&dummy_resp).unwrap();
 
         let client_thread = thread::spawn(move || {
-            let transport = TcpTransport {
+            let transport = SimpleTcpTransport {
                 addr,
-                timeout: Some(time::Duration::from_secs(5)),
+                timeout: Some(Duration::from_secs(5)),
             };
             let client = Client::with_transport(transport);
 
@@ -158,7 +175,7 @@ mod tests {
         });
 
         let (mut stream, _) = server.accept().unwrap();
-        stream.set_read_timeout(Some(time::Duration::from_secs(5))).unwrap();
+        stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
         let mut recv_req = vec![0; dummy_req_ser.len()];
         let mut read = 0;
         while read < dummy_req_ser.len() {
