@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: CC0-1.0
+
 //! This module implements a synchronous transport over a raw TcpListener.
 //!
 
