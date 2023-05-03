@@ -15,10 +15,6 @@ edition = "2018"
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
-[lib]
-name = "jsonrpc"
-path = "src/lib.rs"
-
 [features]
 default = [ "simple_http", "simple_tcp" ]
 # A bare-minimum HTTP transport.
