@@ -268,14 +268,11 @@ impl SimpleHttpTransport {
             header_buf.make_ascii_lowercase();
 
             const CONTENT_LENGTH: &str = "content-length: ";
-            if header_buf.starts_with(CONTENT_LENGTH) {
+            if let Some(s) = header_buf.strip_prefix(CONTENT_LENGTH) {
                 content_length = Some(
-                    header_buf[CONTENT_LENGTH.len()..].trim().parse::<u64>().map_err(|e| {
-                        Error::HttpResponseBadContentLength(
-                            header_buf[CONTENT_LENGTH.len()..].into(),
-                            e,
-                        )
-                    })?,
+                    s.trim()
+                        .parse::<u64>()
+                        .map_err(|e| Error::HttpResponseBadContentLength(s.into(), e))?,
                 );
             }
         }

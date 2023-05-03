@@ -1,3 +1,8 @@
+# Unreleased
+
+* Bump MSRV to rust 1.48.0
+  [#91](https://github.com/apoelstra/rust-jsonrpc/pull/91)
+
 # 0.14.1 - 2023-04-03
 
 * simple_http: fix "re-open socket on write failure" behavior
