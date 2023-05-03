@@ -666,12 +666,17 @@ impl crate::Client {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(not(feature = "proxy"))]
     use serde_json::{Number, Value};
+    use std::net;
+    #[cfg(not(feature = "proxy"))]
     use std::net::{Shutdown, TcpListener};
     #[cfg(feature = "proxy")]
     use std::str::FromStr;
-    use std::sync::mpsc::sync_channel;
-    use std::{net, thread};
+    #[cfg(not(feature = "proxy"))]
+    use std::sync::mpsc;
+    #[cfg(not(feature = "proxy"))]
+    use std::thread;
 
     use super::*;
     use crate::Client;
@@ -778,7 +783,7 @@ mod tests {
     #[cfg(not(feature = "proxy"))]
     #[test]
     fn request_to_closed_socket() {
-        let (tx, rx) = sync_channel(1);
+        let (tx, rx) = mpsc::sync_channel(1);
 
         thread::spawn(move || {
             let server = TcpListener::bind("localhost:0").expect("Binding a Tcp Listener");
