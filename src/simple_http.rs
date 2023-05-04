@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: CC0-1.0
+
 //! This module implements a minimal and non standard conforming HTTP 1.0
 //! round-tripper that works with the bitcoind RPC server. This can be used
 //! if minimal dependencies are a goal and synchronous communication is ok.
