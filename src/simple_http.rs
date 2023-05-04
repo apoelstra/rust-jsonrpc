@@ -50,12 +50,17 @@ mod impls {
     }
 
     impl TcpStream {
-        pub fn connect_timeout(_: &SocketAddr, _: Duration) -> io::Result<Self> { Ok(TcpStream) }
-        pub fn set_read_timeout(&self, _: Option<Duration>) -> io::Result<()> { Ok(()) }
-        pub fn set_write_timeout(&self, _: Option<Duration>) -> io::Result<()> { Ok(()) }
+        pub fn connect_timeout(_: &SocketAddr, _: Duration) -> io::Result<Self> {
+            Ok(TcpStream)
+        }
+        pub fn set_read_timeout(&self, _: Option<Duration>) -> io::Result<()> {
+            Ok(())
+        }
+        pub fn set_write_timeout(&self, _: Option<Duration>) -> io::Result<()> {
+            Ok(())
+        }
     }
 }
-
 
 /// The default TCP port to use for connections.
 /// Set to 8332, the default RPC port for bitcoind.
@@ -169,10 +174,7 @@ impl SimpleHttpTransport {
         Ok(stream)
     }
 
-    fn try_request<R>(
-        &self,
-        req: impl serde::Serialize,
-    ) -> Result<R, Error>
+    fn try_request<R>(&self, req: impl serde::Serialize) -> Result<R, Error>
     where
         R: for<'a> serde::de::Deserialize<'a>,
     {
@@ -236,7 +238,10 @@ impl SimpleHttpTransport {
         }
 
         if header_buf.len() < 12 {
-            return Err(Error::HttpResponseTooShort { actual: header_buf.len(), needed: 12 });
+            return Err(Error::HttpResponseTooShort {
+                actual: header_buf.len(),
+                needed: 12,
+            });
         }
         if !header_buf.as_bytes()[..12].is_ascii() {
             return Err(Error::HttpResponseNonAsciiHello(header_buf.as_bytes()[..12].to_vec()));
@@ -249,10 +254,7 @@ impl SimpleHttpTransport {
         }
         let response_code = match header_buf[9..12].parse::<u16>() {
             Ok(n) => n,
-            Err(e) => return Err(Error::HttpResponseBadStatus(
-                header_buf[9..12].into(),
-                e,
-            )),
+            Err(e) => return Err(Error::HttpResponseBadStatus(header_buf[9..12].into(), e)),
         };
 
         // Parse response header fields
@@ -266,12 +268,11 @@ impl SimpleHttpTransport {
             header_buf.make_ascii_lowercase();
 
             const CONTENT_LENGTH: &str = "content-length: ";
-            if header_buf.starts_with(CONTENT_LENGTH) {
+            if let Some(s) = header_buf.strip_prefix(CONTENT_LENGTH) {
                 content_length = Some(
-                    header_buf[CONTENT_LENGTH.len()..]
-                        .trim()
+                    s.trim()
                         .parse::<u64>()
-                        .map_err(|e| Error::HttpResponseBadContentLength(header_buf[CONTENT_LENGTH.len()..].into(), e))?
+                        .map_err(|e| Error::HttpResponseBadContentLength(s.into(), e))?,
                 );
             }
         }
@@ -291,7 +292,7 @@ impl SimpleHttpTransport {
                     length: n,
                     max: FINAL_RESP_ALLOC,
                 });
-            },
+            }
             Some(n) => sock.take(n),
         };
 
@@ -389,28 +390,44 @@ impl fmt::Display for Error {
                 ref reason,
             } => write!(f, "invalid URL '{}': {}", url, reason),
             Error::SocketError(ref e) => write!(f, "Couldn't connect to host: {}", e),
-            Error::HttpResponseTooShort { ref actual, ref needed } => {
+            Error::HttpResponseTooShort {
+                ref actual,
+                ref needed,
+            } => {
                 write!(f, "HTTP response too short: length {}, needed {}.", actual, needed)
-            },
+            }
             Error::HttpResponseNonAsciiHello(ref bytes) => {
                 write!(f, "HTTP response started with non-ASCII {:?}", bytes)
-            },
-            Error::HttpResponseBadHello { ref actual, ref expected } => {
+            }
+            Error::HttpResponseBadHello {
+                ref actual,
+                ref expected,
+            } => {
                 write!(f, "HTTP response started with `{}`; expected `{}`.", actual, expected)
-            },
+            }
             Error::HttpResponseBadStatus(ref status, ref err) => {
                 write!(f, "HTTP response had bad status code `{}`: {}.", status, err)
-            },
+            }
             Error::HttpResponseBadContentLength(ref len, ref err) => {
                 write!(f, "HTTP response had bad content length `{}`: {}.", len, err)
-            },
-            Error::HttpResponseContentLengthTooLarge { length, max } => {
+            }
+            Error::HttpResponseContentLengthTooLarge {
+                length,
+                max,
+            } => {
                 write!(f, "HTTP response content length {} exceeds our max {}.", length, max)
-            },
+            }
             Error::HttpErrorCode(c) => write!(f, "unexpected HTTP code: {}", c),
-            Error::IncompleteResponse { content_length, n_read } => {
-                write!(f, "Read {} bytes but HTTP response content-length header was {}.", n_read, content_length)
-            },
+            Error::IncompleteResponse {
+                content_length,
+                n_read,
+            } => {
+                write!(
+                    f,
+                    "Read {} bytes but HTTP response content-length header was {}.",
+                    n_read, content_length
+                )
+            }
             Error::Json(ref e) => write!(f, "JSON error: {}", e),
         }
     }
@@ -424,14 +441,22 @@ impl error::Error for Error {
             InvalidUrl {
                 ..
             }
-            | HttpResponseTooShort { .. }
+            | HttpResponseTooShort {
+                ..
+            }
             | HttpResponseNonAsciiHello(..)
-            | HttpResponseBadHello { .. }
+            | HttpResponseBadHello {
+                ..
+            }
             | HttpResponseBadStatus(..)
             | HttpResponseBadContentLength(..)
-            | HttpResponseContentLengthTooLarge { .. }
+            | HttpResponseContentLengthTooLarge {
+                ..
+            }
             | HttpErrorCode(_)
-            | IncompleteResponse { .. } => None,
+            | IncompleteResponse {
+                ..
+            } => None,
             SocketError(ref e) => Some(e),
             Json(ref e) => Some(e),
         }
@@ -641,12 +666,17 @@ impl crate::Client {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(not(feature = "proxy"))]
     use serde_json::{Number, Value};
+    use std::net;
+    #[cfg(not(feature = "proxy"))]
     use std::net::{Shutdown, TcpListener};
     #[cfg(feature = "proxy")]
     use std::str::FromStr;
-    use std::{net, thread};
-    use std::sync::mpsc::sync_channel;
+    #[cfg(not(feature = "proxy"))]
+    use std::sync::mpsc;
+    #[cfg(not(feature = "proxy"))]
+    use std::thread;
 
     use super::*;
     use crate::Client;
@@ -753,7 +783,7 @@ mod tests {
     #[cfg(not(feature = "proxy"))]
     #[test]
     fn request_to_closed_socket() {
-        let (tx,rx) = sync_channel(1);
+        let (tx, rx) = mpsc::sync_channel(1);
 
         thread::spawn(move || {
             let server = TcpListener::bind("localhost:0").expect("Binding a Tcp Listener");
@@ -793,7 +823,8 @@ mod tests {
         thread::sleep(Duration::from_secs(1));
 
         let port = rx.recv().unwrap();
-        let client = Client::simple_http(format!("localhost:{}", port).as_str(), None, None).unwrap();
+        let client =
+            Client::simple_http(format!("localhost:{}", port).as_str(), None, None).unwrap();
         let request = client.build_request("test_request", &[]);
         let result = client.send_request(request).unwrap();
         assert_eq!(result.id, Value::Number(Number::from(0)));

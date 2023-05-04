@@ -18,7 +18,6 @@
 //!
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
-
 // Coding conventions
 #![warn(missing_docs)]
 

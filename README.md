@@ -2,7 +2,7 @@
 
 # Rust Version compatibility
 
-This library is compatible with Rust **1.41.1** or higher.
+This library is compatible with Rust **1.48.0** or higher.
 
 However, if you want to use the library with 1.41, you will need to pin a couple of
 our dependencies:

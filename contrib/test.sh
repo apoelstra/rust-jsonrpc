@@ -1,4 +1,6 @@
-#!/bin/sh -ex
+#!/usr/bin/env bash
+
+set -ex
 
 FEATURES="simple_http simple_tcp simple_uds proxy"
 
@@ -11,21 +13,23 @@ if cargo --version | grep nightly; then
     NIGHTLY=true
 fi
 
-# On MacOS on 1.41 we get a link failure with syn
-# This is fixed by https://github.com/rust-lang/rust/pull/91604 (I think)
-# but implies that we can't do testing on MacOS for now, at least with 1.41.
-if cargo --version | grep "1\.41"; then
-    if [ "$RUNNER_OS" = "macOS" ]; then
-        exit 0
-    fi
-
+# Pin dependencies as required if we are using MSRV toolchain.
+if cargo --version | grep "1\.48"; then
+    # 1.0.157 uses syn 2.0 which requires edition 2021
     cargo update -p serde --precise 1.0.156
-    cargo update -p syn --precise 1.0.107
 fi
 
+# Make all cargo invocations verbose
+export CARGO_TERM_VERBOSE=true
+
 # Defaults / sanity checks
-cargo build --all
-cargo test --all
+cargo build
+cargo test
+
+if [ "$DO_LINT" = true ]
+then
+    cargo clippy --all-features --all-targets -- -D warnings
+fi
 
 if [ "$DO_FEATURE_MATRIX" = true ]; then
     cargo build --no-default-features
@@ -42,14 +46,23 @@ if [ "$DO_FEATURE_MATRIX" = true ]; then
     done
 fi
 
-# Build docs if told to, only works with nightly toolchain.
-if [ "$DO_DOCS" = true ]; then
-    if [ "$NIGHTLY" = false ]; then
-        echo "DO_DOCS requires a nightly toolchain (consider using RUSTUP_TOOLCHAIN)"
-        exit 1
-    fi
-
-    RUSTDOCFLAGS="--cfg docsrs" cargo rustdoc --features="$FEATURES" -- -D rustdoc::broken-intra-doc-links
+# Build the docs if told to (this only works with the nightly toolchain)
+if [ "$DO_DOCSRS" = true ]; then
+    RUSTDOCFLAGS="--cfg docsrs -D warnings -D rustdoc::broken-intra-doc-links" cargo +nightly doc --all-features
 fi
 
-exit 0
+# Build the docs with a stable toolchain, in unison with the DO_DOCSRS command
+# above this checks that we feature guarded docs imports correctly.
+if [ "$DO_DOCS" = true ]; then
+    RUSTDOCFLAGS="-D warnings" cargo +stable doc --all-features
+fi
+
+# Run formatter if told to.
+if [ "$DO_FMT" = true ]; then
+    if [ "$NIGHTLY" = false ]; then
+        echo "DO_FMT requires a nightly toolchain (consider using RUSTUP_TOOLCHAIN)"
+        exit 1
+    fi
+    rustup component add rustfmt
+    cargo fmt --check
+fi
