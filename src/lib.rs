@@ -33,7 +33,6 @@ pub mod simple_tcp;
 #[cfg(all(feature = "simple_uds", not(windows)))]
 pub mod simple_uds;
 
-// Re-export error type
 pub use crate::client::{Client, Transport};
 pub use crate::error::Error;
 
