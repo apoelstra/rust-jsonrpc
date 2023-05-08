@@ -8,6 +8,57 @@ use std::{error, fmt, io, path, time};
 use crate::client::Transport;
 use crate::{Request, Response};
 
+/// Simple synchronous UDS transport.
+#[derive(Debug, Clone)]
+pub struct UdsTransport {
+    /// The path to the Unix Domain Socket.
+    pub sockpath: path::PathBuf,
+    /// The read and write timeout to use.
+    pub timeout: Option<time::Duration>,
+}
+
+impl UdsTransport {
+    /// Creates a new [`UdsTransport`] without timeouts to use.
+    pub fn new<P: AsRef<path::Path>>(sockpath: P) -> UdsTransport {
+        UdsTransport {
+            sockpath: sockpath.as_ref().to_path_buf(),
+            timeout: None,
+        }
+    }
+
+    fn request<R>(&self, req: impl serde::Serialize) -> Result<R, Error>
+    where
+        R: for<'a> serde::de::Deserialize<'a>,
+    {
+        let mut sock = UnixStream::connect(&self.sockpath)?;
+        sock.set_read_timeout(self.timeout)?;
+        sock.set_write_timeout(self.timeout)?;
+
+        serde_json::to_writer(&mut sock, &req)?;
+
+        // NOTE: we don't check the id there, so it *must* be synchronous
+        let resp: R = serde_json::Deserializer::from_reader(&mut sock)
+            .into_iter()
+            .next()
+            .ok_or(Error::Timeout)??;
+        Ok(resp)
+    }
+}
+
+impl Transport for UdsTransport {
+    fn send_request(&self, req: Request) -> Result<Response, crate::error::Error> {
+        Ok(self.request(req)?)
+    }
+
+    fn send_batch(&self, reqs: &[Request]) -> Result<Vec<Response>, crate::error::Error> {
+        Ok(self.request(reqs)?)
+    }
+
+    fn fmt_target(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.sockpath.to_string_lossy())
+    }
+}
+
 /// Error that can occur while using the UDS transport.
 #[derive(Debug)]
 pub enum Error {
@@ -61,57 +112,6 @@ impl From<Error> for crate::error::Error {
             Error::Json(e) => crate::error::Error::Json(e),
             e => crate::error::Error::Transport(Box::new(e)),
         }
-    }
-}
-
-/// Simple synchronous UDS transport.
-#[derive(Debug, Clone)]
-pub struct UdsTransport {
-    /// The path to the Unix Domain Socket.
-    pub sockpath: path::PathBuf,
-    /// The read and write timeout to use.
-    pub timeout: Option<time::Duration>,
-}
-
-impl UdsTransport {
-    /// Creates a new [`UdsTransport`] without timeouts to use.
-    pub fn new<P: AsRef<path::Path>>(sockpath: P) -> UdsTransport {
-        UdsTransport {
-            sockpath: sockpath.as_ref().to_path_buf(),
-            timeout: None,
-        }
-    }
-
-    fn request<R>(&self, req: impl serde::Serialize) -> Result<R, Error>
-    where
-        R: for<'a> serde::de::Deserialize<'a>,
-    {
-        let mut sock = UnixStream::connect(&self.sockpath)?;
-        sock.set_read_timeout(self.timeout)?;
-        sock.set_write_timeout(self.timeout)?;
-
-        serde_json::to_writer(&mut sock, &req)?;
-
-        // NOTE: we don't check the id there, so it *must* be synchronous
-        let resp: R = serde_json::Deserializer::from_reader(&mut sock)
-            .into_iter()
-            .next()
-            .ok_or(Error::Timeout)??;
-        Ok(resp)
-    }
-}
-
-impl Transport for UdsTransport {
-    fn send_request(&self, req: Request) -> Result<Response, crate::error::Error> {
-        Ok(self.request(req)?)
-    }
-
-    fn send_batch(&self, reqs: &[Request]) -> Result<Vec<Response>, crate::error::Error> {
-        Ok(self.request(reqs)?)
-    }
-
-    fn fmt_target(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.sockpath.to_string_lossy())
     }
 }
 

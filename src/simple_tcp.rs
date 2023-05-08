@@ -8,6 +8,57 @@ use std::{error, fmt, io, net, time};
 use crate::client::Transport;
 use crate::{Request, Response};
 
+#[derive(Debug, Clone)]
+/// Simple synchronous TCP transport.
+pub struct TcpTransport {
+    /// The internet socket address to connect to.
+    pub addr: net::SocketAddr,
+    /// The read and write timeout to use for this connection.
+    pub timeout: Option<time::Duration>,
+}
+
+impl TcpTransport {
+    /// Creates a new `TcpTransport` without timeouts.
+    pub fn new(addr: net::SocketAddr) -> TcpTransport {
+        TcpTransport {
+            addr,
+            timeout: None,
+        }
+    }
+
+    fn request<R>(&self, req: impl serde::Serialize) -> Result<R, Error>
+    where
+        R: for<'a> serde::de::Deserialize<'a>,
+    {
+        let mut sock = net::TcpStream::connect(self.addr)?;
+        sock.set_read_timeout(self.timeout)?;
+        sock.set_write_timeout(self.timeout)?;
+
+        serde_json::to_writer(&mut sock, &req)?;
+
+        // NOTE: we don't check the id there, so it *must* be synchronous
+        let resp: R = serde_json::Deserializer::from_reader(&mut sock)
+            .into_iter()
+            .next()
+            .ok_or(Error::Timeout)??;
+        Ok(resp)
+    }
+}
+
+impl Transport for TcpTransport {
+    fn send_request(&self, req: Request) -> Result<Response, crate::Error> {
+        Ok(self.request(req)?)
+    }
+
+    fn send_batch(&self, reqs: &[Request]) -> Result<Vec<Response>, crate::Error> {
+        Ok(self.request(reqs)?)
+    }
+
+    fn fmt_target(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.addr)
+    }
+}
+
 /// Error that can occur while using the TCP transport.
 #[derive(Debug)]
 pub enum Error {
@@ -61,57 +112,6 @@ impl From<Error> for crate::Error {
             Error::Json(e) => crate::Error::Json(e),
             e => crate::Error::Transport(Box::new(e)),
         }
-    }
-}
-
-#[derive(Debug, Clone)]
-/// Simple synchronous TCP transport.
-pub struct TcpTransport {
-    /// The internet socket address to connect to.
-    pub addr: net::SocketAddr,
-    /// The read and write timeout to use for this connection.
-    pub timeout: Option<time::Duration>,
-}
-
-impl TcpTransport {
-    /// Creates a new `TcpTransport` without timeouts.
-    pub fn new(addr: net::SocketAddr) -> TcpTransport {
-        TcpTransport {
-            addr,
-            timeout: None,
-        }
-    }
-
-    fn request<R>(&self, req: impl serde::Serialize) -> Result<R, Error>
-    where
-        R: for<'a> serde::de::Deserialize<'a>,
-    {
-        let mut sock = net::TcpStream::connect(self.addr)?;
-        sock.set_read_timeout(self.timeout)?;
-        sock.set_write_timeout(self.timeout)?;
-
-        serde_json::to_writer(&mut sock, &req)?;
-
-        // NOTE: we don't check the id there, so it *must* be synchronous
-        let resp: R = serde_json::Deserializer::from_reader(&mut sock)
-            .into_iter()
-            .next()
-            .ok_or(Error::Timeout)??;
-        Ok(resp)
-    }
-}
-
-impl Transport for TcpTransport {
-    fn send_request(&self, req: Request) -> Result<Response, crate::Error> {
-        Ok(self.request(req)?)
-    }
-
-    fn send_batch(&self, reqs: &[Request]) -> Result<Vec<Response>, crate::Error> {
-        Ok(self.request(reqs)?)
-    }
-
-    fn fmt_target(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.addr)
     }
 }
 

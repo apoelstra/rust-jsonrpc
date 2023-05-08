@@ -17,47 +17,6 @@ use std::{error, fmt, io, net, num};
 use crate::client::Transport;
 use crate::{Request, Response};
 
-/// Global mutex used by the fuzzing harness to inject data into the read end of the TCP stream.
-#[cfg(fuzzing)]
-pub static FUZZ_TCP_SOCK: Mutex<Option<io::Cursor<Vec<u8>>>> = Mutex::new(None);
-
-#[cfg(fuzzing)]
-#[derive(Clone, Debug)]
-struct TcpStream;
-
-#[cfg(fuzzing)]
-mod impls {
-    use super::*;
-    impl Read for TcpStream {
-        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-            match *FUZZ_TCP_SOCK.lock().unwrap() {
-                Some(ref mut cursor) => io::Read::read(cursor, buf),
-                None => Ok(0),
-            }
-        }
-    }
-    impl Write for TcpStream {
-        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-            io::sink().write(buf)
-        }
-        fn flush(&mut self) -> io::Result<()> {
-            Ok(())
-        }
-    }
-
-    impl TcpStream {
-        pub fn connect_timeout(_: &SocketAddr, _: Duration) -> io::Result<Self> {
-            Ok(TcpStream)
-        }
-        pub fn set_read_timeout(&self, _: Option<Duration>) -> io::Result<()> {
-            Ok(())
-        }
-        pub fn set_write_timeout(&self, _: Option<Duration>) -> io::Result<()> {
-            Ok(())
-        }
-    }
-}
-
 /// The default TCP port to use for connections.
 /// Set to 8332, the default RPC port for bitcoind.
 pub const DEFAULT_PORT: u16 = 8332;
@@ -316,172 +275,6 @@ impl SimpleHttpTransport {
     }
 }
 
-/// Error that can happen when sending requests.
-#[derive(Debug)]
-pub enum Error {
-    /// An invalid URL was passed.
-    InvalidUrl {
-        /// The URL passed.
-        url: String,
-        /// The reason the URL is invalid.
-        reason: &'static str,
-    },
-    /// An error occurred on the socket layer.
-    SocketError(io::Error),
-    /// The HTTP response was too short to even fit a HTTP 1.1 header.
-    HttpResponseTooShort {
-        /// The total length of the response.
-        actual: usize,
-        /// Minimum length we can parse.
-        needed: usize,
-    },
-    /// The HTTP response started with a HTTP/1.1 line which was not ASCII.
-    HttpResponseNonAsciiHello(Vec<u8>),
-    /// The HTTP response did not start with HTTP/1.1
-    HttpResponseBadHello {
-        /// Actual HTTP-whatever string.
-        actual: String,
-        /// The hello string of the HTTP version we support.
-        expected: String,
-    },
-    /// Could not parse the status value as a number.
-    HttpResponseBadStatus(String, num::ParseIntError),
-    /// Could not parse the status value as a number.
-    HttpResponseBadContentLength(String, num::ParseIntError),
-    /// The indicated content-length header exceeded our maximum.
-    HttpResponseContentLengthTooLarge {
-        /// The length indicated in the content-length header.
-        length: u64,
-        /// Our hard maximum on number of bytes we'll try to read.
-        max: u64,
-    },
-    /// Unexpected HTTP error code (non-200).
-    HttpErrorCode(u16),
-    /// Received EOF before getting as many bytes as were indicated by the content-length header.
-    IncompleteResponse {
-        /// The content-length header.
-        content_length: u64,
-        /// The number of bytes we actually read.
-        n_read: u64,
-    },
-    /// JSON parsing error.
-    Json(serde_json::Error),
-}
-
-impl Error {
-    /// Utility method to create [`Error::InvalidUrl`] variants.
-    fn url<U: Into<String>>(url: U, reason: &'static str) -> Error {
-        Error::InvalidUrl {
-            url: url.into(),
-            reason,
-        }
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        use Error::*;
-
-        match *self {
-            InvalidUrl {
-                ref url,
-                ref reason,
-            } => write!(f, "invalid URL '{}': {}", url, reason),
-            SocketError(ref e) => write!(f, "Couldn't connect to host: {}", e),
-            HttpResponseTooShort {
-                ref actual,
-                ref needed,
-            } => {
-                write!(f, "HTTP response too short: length {}, needed {}.", actual, needed)
-            }
-            HttpResponseNonAsciiHello(ref bytes) => {
-                write!(f, "HTTP response started with non-ASCII {:?}", bytes)
-            }
-            HttpResponseBadHello {
-                ref actual,
-                ref expected,
-            } => {
-                write!(f, "HTTP response started with `{}`; expected `{}`.", actual, expected)
-            }
-            HttpResponseBadStatus(ref status, ref err) => {
-                write!(f, "HTTP response had bad status code `{}`: {}.", status, err)
-            }
-            HttpResponseBadContentLength(ref len, ref err) => {
-                write!(f, "HTTP response had bad content length `{}`: {}.", len, err)
-            }
-            HttpResponseContentLengthTooLarge {
-                length,
-                max,
-            } => {
-                write!(f, "HTTP response content length {} exceeds our max {}.", length, max)
-            }
-            HttpErrorCode(c) => write!(f, "unexpected HTTP code: {}", c),
-            IncompleteResponse {
-                content_length,
-                n_read,
-            } => {
-                write!(
-                    f,
-                    "read {} bytes but HTTP response content-length header was {}.",
-                    n_read, content_length
-                )
-            }
-            Json(ref e) => write!(f, "JSON error: {}", e),
-        }
-    }
-}
-
-impl error::Error for Error {
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        use self::Error::*;
-
-        match *self {
-            InvalidUrl {
-                ..
-            }
-            | HttpResponseTooShort {
-                ..
-            }
-            | HttpResponseNonAsciiHello(..)
-            | HttpResponseBadHello {
-                ..
-            }
-            | HttpResponseBadStatus(..)
-            | HttpResponseBadContentLength(..)
-            | HttpResponseContentLengthTooLarge {
-                ..
-            }
-            | HttpErrorCode(_)
-            | IncompleteResponse {
-                ..
-            } => None,
-            SocketError(ref e) => Some(e),
-            Json(ref e) => Some(e),
-        }
-    }
-}
-
-impl From<io::Error> for Error {
-    fn from(e: io::Error) -> Self {
-        Error::SocketError(e)
-    }
-}
-
-impl From<serde_json::Error> for Error {
-    fn from(e: serde_json::Error) -> Self {
-        Error::Json(e)
-    }
-}
-
-impl From<Error> for crate::Error {
-    fn from(e: Error) -> crate::Error {
-        match e {
-            Error::Json(e) => crate::Error::Json(e),
-            e => crate::Error::Transport(Box::new(e)),
-        }
-    }
-}
-
 /// Does some very basic manual URL parsing because the uri/url crates
 /// all have unicode-normalization as a dependency and that's broken.
 fn check_url(url: &str) -> Result<(SocketAddr, String), Error> {
@@ -659,6 +452,213 @@ impl crate::Client {
         }
         let tp = builder.build();
         Ok(crate::Client::with_transport(tp))
+    }
+}
+
+/// Error that can happen when sending requests.
+#[derive(Debug)]
+pub enum Error {
+    /// An invalid URL was passed.
+    InvalidUrl {
+        /// The URL passed.
+        url: String,
+        /// The reason the URL is invalid.
+        reason: &'static str,
+    },
+    /// An error occurred on the socket layer.
+    SocketError(io::Error),
+    /// The HTTP response was too short to even fit a HTTP 1.1 header.
+    HttpResponseTooShort {
+        /// The total length of the response.
+        actual: usize,
+        /// Minimum length we can parse.
+        needed: usize,
+    },
+    /// The HTTP response started with a HTTP/1.1 line which was not ASCII.
+    HttpResponseNonAsciiHello(Vec<u8>),
+    /// The HTTP response did not start with HTTP/1.1
+    HttpResponseBadHello {
+        /// Actual HTTP-whatever string.
+        actual: String,
+        /// The hello string of the HTTP version we support.
+        expected: String,
+    },
+    /// Could not parse the status value as a number.
+    HttpResponseBadStatus(String, num::ParseIntError),
+    /// Could not parse the status value as a number.
+    HttpResponseBadContentLength(String, num::ParseIntError),
+    /// The indicated content-length header exceeded our maximum.
+    HttpResponseContentLengthTooLarge {
+        /// The length indicated in the content-length header.
+        length: u64,
+        /// Our hard maximum on number of bytes we'll try to read.
+        max: u64,
+    },
+    /// Unexpected HTTP error code (non-200).
+    HttpErrorCode(u16),
+    /// Received EOF before getting as many bytes as were indicated by the content-length header.
+    IncompleteResponse {
+        /// The content-length header.
+        content_length: u64,
+        /// The number of bytes we actually read.
+        n_read: u64,
+    },
+    /// JSON parsing error.
+    Json(serde_json::Error),
+}
+
+impl Error {
+    /// Utility method to create [`Error::InvalidUrl`] variants.
+    fn url<U: Into<String>>(url: U, reason: &'static str) -> Error {
+        Error::InvalidUrl {
+            url: url.into(),
+            reason,
+        }
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        use Error::*;
+
+        match *self {
+            InvalidUrl {
+                ref url,
+                ref reason,
+            } => write!(f, "invalid URL '{}': {}", url, reason),
+            SocketError(ref e) => write!(f, "Couldn't connect to host: {}", e),
+            HttpResponseTooShort {
+                ref actual,
+                ref needed,
+            } => {
+                write!(f, "HTTP response too short: length {}, needed {}.", actual, needed)
+            }
+            HttpResponseNonAsciiHello(ref bytes) => {
+                write!(f, "HTTP response started with non-ASCII {:?}", bytes)
+            }
+            HttpResponseBadHello {
+                ref actual,
+                ref expected,
+            } => {
+                write!(f, "HTTP response started with `{}`; expected `{}`.", actual, expected)
+            }
+            HttpResponseBadStatus(ref status, ref err) => {
+                write!(f, "HTTP response had bad status code `{}`: {}.", status, err)
+            }
+            HttpResponseBadContentLength(ref len, ref err) => {
+                write!(f, "HTTP response had bad content length `{}`: {}.", len, err)
+            }
+            HttpResponseContentLengthTooLarge {
+                length,
+                max,
+            } => {
+                write!(f, "HTTP response content length {} exceeds our max {}.", length, max)
+            }
+            HttpErrorCode(c) => write!(f, "unexpected HTTP code: {}", c),
+            IncompleteResponse {
+                content_length,
+                n_read,
+            } => {
+                write!(
+                    f,
+                    "read {} bytes but HTTP response content-length header was {}.",
+                    n_read, content_length
+                )
+            }
+            Json(ref e) => write!(f, "JSON error: {}", e),
+        }
+    }
+}
+
+impl error::Error for Error {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        use self::Error::*;
+
+        match *self {
+            InvalidUrl {
+                ..
+            }
+            | HttpResponseTooShort {
+                ..
+            }
+            | HttpResponseNonAsciiHello(..)
+            | HttpResponseBadHello {
+                ..
+            }
+            | HttpResponseBadStatus(..)
+            | HttpResponseBadContentLength(..)
+            | HttpResponseContentLengthTooLarge {
+                ..
+            }
+            | HttpErrorCode(_)
+            | IncompleteResponse {
+                ..
+            } => None,
+            SocketError(ref e) => Some(e),
+            Json(ref e) => Some(e),
+        }
+    }
+}
+
+impl From<io::Error> for Error {
+    fn from(e: io::Error) -> Self {
+        Error::SocketError(e)
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(e: serde_json::Error) -> Self {
+        Error::Json(e)
+    }
+}
+
+impl From<Error> for crate::Error {
+    fn from(e: Error) -> crate::Error {
+        match e {
+            Error::Json(e) => crate::Error::Json(e),
+            e => crate::Error::Transport(Box::new(e)),
+        }
+    }
+}
+
+/// Global mutex used by the fuzzing harness to inject data into the read end of the TCP stream.
+#[cfg(fuzzing)]
+pub static FUZZ_TCP_SOCK: Mutex<Option<io::Cursor<Vec<u8>>>> = Mutex::new(None);
+
+#[cfg(fuzzing)]
+#[derive(Clone, Debug)]
+struct TcpStream;
+
+#[cfg(fuzzing)]
+mod impls {
+    use super::*;
+    impl Read for TcpStream {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            match *FUZZ_TCP_SOCK.lock().unwrap() {
+                Some(ref mut cursor) => io::Read::read(cursor, buf),
+                None => Ok(0),
+            }
+        }
+    }
+    impl Write for TcpStream {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            io::sink().write(buf)
+        }
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl TcpStream {
+        pub fn connect_timeout(_: &SocketAddr, _: Duration) -> io::Result<Self> {
+            Ok(TcpStream)
+        }
+        pub fn set_read_timeout(&self, _: Option<Duration>) -> io::Result<()> {
+            Ok(())
+        }
+        pub fn set_write_timeout(&self, _: Option<Duration>) -> io::Result<()> {
+            Ok(())
+        }
     }
 }
 
