@@ -11,13 +11,11 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::sync::atomic;
 
-use serde;
-use serde_json;
 use serde_json::value::RawValue;
 use serde_json::Value;
 
-use super::{Request, Response};
 use crate::error::Error;
+use crate::{Request, Response};
 
 /// An interface for a transport over which to use the JSONRPC protocol.
 pub trait Transport: Send + Sync + 'static {

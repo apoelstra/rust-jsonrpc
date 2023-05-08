@@ -7,7 +7,6 @@
 use std::{error, fmt};
 
 use serde::{Deserialize, Serialize};
-use serde_json;
 
 use crate::Response;
 
