@@ -380,51 +380,53 @@ impl Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        use Error::*;
+
         match *self {
-            Error::InvalidUrl {
+            InvalidUrl {
                 ref url,
                 ref reason,
             } => write!(f, "invalid URL '{}': {}", url, reason),
-            Error::SocketError(ref e) => write!(f, "Couldn't connect to host: {}", e),
-            Error::HttpResponseTooShort {
+            SocketError(ref e) => write!(f, "Couldn't connect to host: {}", e),
+            HttpResponseTooShort {
                 ref actual,
                 ref needed,
             } => {
                 write!(f, "HTTP response too short: length {}, needed {}.", actual, needed)
             }
-            Error::HttpResponseNonAsciiHello(ref bytes) => {
+            HttpResponseNonAsciiHello(ref bytes) => {
                 write!(f, "HTTP response started with non-ASCII {:?}", bytes)
             }
-            Error::HttpResponseBadHello {
+            HttpResponseBadHello {
                 ref actual,
                 ref expected,
             } => {
                 write!(f, "HTTP response started with `{}`; expected `{}`.", actual, expected)
             }
-            Error::HttpResponseBadStatus(ref status, ref err) => {
+            HttpResponseBadStatus(ref status, ref err) => {
                 write!(f, "HTTP response had bad status code `{}`: {}.", status, err)
             }
-            Error::HttpResponseBadContentLength(ref len, ref err) => {
+            HttpResponseBadContentLength(ref len, ref err) => {
                 write!(f, "HTTP response had bad content length `{}`: {}.", len, err)
             }
-            Error::HttpResponseContentLengthTooLarge {
+            HttpResponseContentLengthTooLarge {
                 length,
                 max,
             } => {
                 write!(f, "HTTP response content length {} exceeds our max {}.", length, max)
             }
-            Error::HttpErrorCode(c) => write!(f, "unexpected HTTP code: {}", c),
-            Error::IncompleteResponse {
+            HttpErrorCode(c) => write!(f, "unexpected HTTP code: {}", c),
+            IncompleteResponse {
                 content_length,
                 n_read,
             } => {
                 write!(
                     f,
-                    "Read {} bytes but HTTP response content-length header was {}.",
+                    "read {} bytes but HTTP response content-length header was {}.",
                     n_read, content_length
                 )
             }
-            Error::Json(ref e) => write!(f, "JSON error: {}", e),
+            Json(ref e) => write!(f, "JSON error: {}", e),
         }
     }
 }

@@ -21,10 +21,12 @@ pub enum Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        use Error::*;
+
         match *self {
-            Error::SocketError(ref e) => write!(f, "Couldn't connect to host: {}", e),
-            Error::Timeout => f.write_str("Didn't receive response data in time, timed out."),
-            Error::Json(ref e) => write!(f, "JSON error: {}", e),
+            SocketError(ref e) => write!(f, "couldn't connect to host: {}", e),
+            Timeout => f.write_str("didn't receive response data in time, timed out."),
+            Json(ref e) => write!(f, "JSON error: {}", e),
         }
     }
 }
