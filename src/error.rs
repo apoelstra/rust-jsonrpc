@@ -121,8 +121,8 @@ pub enum StandardError {
     InternalError,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
 /// A JSONRPC error object
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct RpcError {
     /// The integer identifier of the error
     pub code: i32,

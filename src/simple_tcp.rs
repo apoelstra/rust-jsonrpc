@@ -63,8 +63,8 @@ impl From<Error> for crate::Error {
     }
 }
 
-/// Simple synchronous TCP transport.
 #[derive(Debug, Clone)]
+/// Simple synchronous TCP transport.
 pub struct TcpTransport {
     /// The internet socket address to connect to.
     pub addr: net::SocketAddr,

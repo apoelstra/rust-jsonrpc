@@ -58,8 +58,8 @@ pub fn arg<T: serde::Serialize>(arg: T) -> Box<RawValue> {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
 /// A JSONRPC request object.
+#[derive(Debug, Clone, Serialize)]
 pub struct Request<'a> {
     /// The name of the RPC call.
     pub method: &'a str,
@@ -71,8 +71,8 @@ pub struct Request<'a> {
     pub jsonrpc: Option<&'a str>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
 /// A JSONRPC response object.
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Response {
     /// A result if there is one, or [`None`].
     pub result: Option<Box<RawValue>>,

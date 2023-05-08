@@ -18,9 +18,9 @@ use std::{error, fmt, io, net, num};
 use crate::client::Transport;
 use crate::{Request, Response};
 
-#[cfg(fuzzing)]
 /// Global mutex used by the fuzzing harness to inject data into the read
 /// end of the TCP stream.
+#[cfg(fuzzing)]
 pub static FUZZ_TCP_SOCK: Mutex<Option<io::Cursor<Vec<u8>>>> = Mutex::new(None);
 
 #[cfg(fuzzing)]
@@ -598,16 +598,16 @@ impl Builder {
         self
     }
 
-    #[cfg(feature = "proxy")]
     /// Adds proxy address to the transport for SOCKS5 proxy.
+    #[cfg(feature = "proxy")]
     pub fn proxy_addr<S: AsRef<str>>(mut self, proxy_addr: S) -> Result<Self, Error> {
         // We don't expect path in proxy address.
         self.tp.proxy_addr = check_url(proxy_addr.as_ref())?.0;
         Ok(self)
     }
 
-    #[cfg(feature = "proxy")]
     /// Adds optional proxy authentication as ('username', 'password').
+    #[cfg(feature = "proxy")]
     pub fn proxy_auth<S: AsRef<str>>(mut self, user: S, pass: S) -> Self {
         self.tp.proxy_auth =
             Some((user, pass)).map(|(u, p)| (u.as_ref().to_string(), p.as_ref().to_string()));
@@ -640,8 +640,8 @@ impl crate::Client {
         Ok(crate::Client::with_transport(builder.build()))
     }
 
-    #[cfg(feature = "proxy")]
     /// Creates a new JSON_RPC client using a HTTP-Socks5 proxy transport.
+    #[cfg(feature = "proxy")]
     pub fn http_proxy(
         url: &str,
         user: Option<String>,
