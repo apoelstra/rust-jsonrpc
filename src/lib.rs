@@ -9,8 +9,6 @@
 // Coding conventions
 #![warn(missing_docs)]
 
-use serde::{Deserialize, Serialize};
-
 /// Re-export `serde` crate.
 pub extern crate serde;
 /// Re-export `serde_json` crate.
@@ -33,10 +31,11 @@ pub mod simple_tcp;
 #[cfg(all(feature = "simple_uds", not(windows)))]
 pub mod simple_uds;
 
+use serde::{Deserialize, Serialize};
+use serde_json::value::RawValue;
+
 pub use crate::client::{Client, Transport};
 pub use crate::error::Error;
-
-use serde_json::value::RawValue;
 
 /// Shorthand method to convert an argument into a boxed [`serde_json::value::RawValue`].
 ///
