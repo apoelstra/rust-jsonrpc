@@ -3,7 +3,6 @@
 //! This module implements a minimal and non standard conforming HTTP 1.0
 //! round-tripper that works with the bitcoind RPC server. This can be used
 //! if minimal dependencies are a goal and synchronous communication is ok.
-//!
 
 #[cfg(feature = "proxy")]
 use socks::Socks5Stream;
@@ -18,8 +17,7 @@ use std::{error, fmt, io, net, num};
 use crate::client::Transport;
 use crate::{Request, Response};
 
-/// Global mutex used by the fuzzing harness to inject data into the read
-/// end of the TCP stream.
+/// Global mutex used by the fuzzing harness to inject data into the read end of the TCP stream.
 #[cfg(fuzzing)]
 pub static FUZZ_TCP_SOCK: Mutex<Option<io::Cursor<Vec<u8>>>> = Mutex::new(None);
 
@@ -65,9 +63,10 @@ mod impls {
 pub const DEFAULT_PORT: u16 = 8332;
 
 /// The Default SOCKS5 Port to use for proxy connection.
+/// Set to 9050, the default RPC port for tor.
 pub const DEFAULT_PROXY_PORT: u16 = 9050;
 
-/// Absolute maximum content length we will allow before cutting off the response
+/// Absolute maximum content length allowed before cutting off the response.
 const FINAL_RESP_ALLOC: u64 = 1024 * 1024 * 1024;
 
 /// Simple HTTP transport that implements the necessary subset of HTTP for
@@ -122,7 +121,7 @@ impl SimpleHttpTransport {
         Builder::new()
     }
 
-    /// Replaces the URL of the transport
+    /// Replaces the URL of the transport.
     pub fn set_url(&mut self, url: &str) -> Result<(), Error> {
         let url = check_url(url)?;
         self.addr = url.0;
@@ -130,7 +129,7 @@ impl SimpleHttpTransport {
         Ok(())
     }
 
-    /// Replaces only the path part of the URL
+    /// Replaces only the path part of the URL.
     pub fn set_url_path(&mut self, path: String) {
         self.path = path;
     }
@@ -329,41 +328,40 @@ pub enum Error {
     },
     /// An error occurred on the socket layer.
     SocketError(io::Error),
-    /// The HTTP response was too short to even fit a HTTP 1.1 header
+    /// The HTTP response was too short to even fit a HTTP 1.1 header.
     HttpResponseTooShort {
-        /// The total length of the response
+        /// The total length of the response.
         actual: usize,
-        /// Minimum length we can parse
+        /// Minimum length we can parse.
         needed: usize,
     },
-    /// The HTTP response started with a HTTP/1.1 line which was not ASCII
+    /// The HTTP response started with a HTTP/1.1 line which was not ASCII.
     HttpResponseNonAsciiHello(Vec<u8>),
     /// The HTTP response did not start with HTTP/1.1
     HttpResponseBadHello {
-        /// Actual HTTP-whatever string
+        /// Actual HTTP-whatever string.
         actual: String,
-        /// The hello string of the HTTP version we support
+        /// The hello string of the HTTP version we support.
         expected: String,
     },
-    /// Could not parse the status value as a number
+    /// Could not parse the status value as a number.
     HttpResponseBadStatus(String, num::ParseIntError),
-    /// Could not parse the status value as a number
+    /// Could not parse the status value as a number.
     HttpResponseBadContentLength(String, num::ParseIntError),
-    /// The indicated content-length header exceeded our maximum
+    /// The indicated content-length header exceeded our maximum.
     HttpResponseContentLengthTooLarge {
-        /// The length indicated in the content-length header
+        /// The length indicated in the content-length header.
         length: u64,
-        /// Our hard maximum on number of bytes we'll try to read
+        /// Our hard maximum on number of bytes we'll try to read.
         max: u64,
     },
     /// Unexpected HTTP error code (non-200).
     HttpErrorCode(u16),
-    /// Received EOF before getting as many bytes as were indicated by the
-    /// content-length header
+    /// Received EOF before getting as many bytes as were indicated by the content-length header.
     IncompleteResponse {
-        /// The content-length header
+        /// The content-length header.
         content_length: u64,
-        /// The number of bytes we actually read
+        /// The number of bytes we actually read.
         n_read: u64,
     },
     /// JSON parsing error.

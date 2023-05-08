@@ -2,8 +2,7 @@
 
 //! # Error handling
 //!
-//! Some useful methods for creating Error objects
-//!
+//! Some useful methods for creating Error objects.
 
 use std::{error, fmt};
 

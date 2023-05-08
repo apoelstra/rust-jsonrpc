@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
 
-//! This module implements a synchronous transport over a raw TcpListener.
-//!
+//! This module implements a synchronous transport over a raw [`std::net::TcpListener`].
 
 use std::os::unix::net::UnixStream;
 use std::{error, fmt, io, path, time};

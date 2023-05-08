@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 
-//! This module implements a synchronous transport over a raw TcpListener. Note that
-//! it does not handle TCP over Unix Domain Sockets, see `simple_uds` for this.
-//!
+//! This module implements a synchronous transport over a raw [`std::net::TcpListener`].
+//! Note that it does not handle TCP over Unix Domain Sockets, see `simple_uds` for this.
 
 use std::{error, fmt, io, net, time};
 
@@ -73,7 +72,7 @@ pub struct TcpTransport {
 }
 
 impl TcpTransport {
-    /// Creates a new TcpTransport without timeouts.
+    /// Creates a new `TcpTransport` without timeouts.
     pub fn new(addr: net::SocketAddr) -> TcpTransport {
         TcpTransport {
             addr,

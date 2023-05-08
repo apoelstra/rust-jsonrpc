@@ -4,7 +4,6 @@
 //!
 //! Support for connecting to JSONRPC servers over HTTP, sending requests,
 //! and parsing responses
-//!
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -22,18 +21,17 @@ use crate::error::Error;
 
 /// An interface for a transport over which to use the JSONRPC protocol.
 pub trait Transport: Send + Sync + 'static {
-    /// Send an RPC request over the transport.
+    /// Sends an RPC request over the transport.
     fn send_request(&self, _: Request) -> Result<Response, Error>;
-    /// Send a batch of RPC requests over the transport.
+    /// Sends a batch of RPC requests over the transport.
     fn send_batch(&self, _: &[Request]) -> Result<Vec<Response>, Error>;
-    /// Format the target of this transport.
-    /// I.e. the URL/socket/...
+    /// Formats the target of this transport. I.e. the URL/socket/...
     fn fmt_target(&self, f: &mut fmt::Formatter) -> fmt::Result;
 }
 
 /// A JSON-RPC client.
 ///
-/// Create a new Client using one of the transport-specific constructors e.g.,
+/// Creates a new Client using one of the transport-specific constructors e.g.,
 /// [`Client::simple_http`] for a bare-minimum HTTP transport.
 pub struct Client {
     pub(crate) transport: Box<dyn Transport>,
@@ -112,7 +110,7 @@ impl Client {
         Ok(results)
     }
 
-    /// Make a request and deserialize the response.
+    /// Makes a request and deserializes the response.
     ///
     /// To construct the arguments, one can use one of the shorthand methods
     /// [`crate::arg`] or [`crate::try_arg`].

@@ -3,7 +3,6 @@
 //! # Rust JSON-RPC Library
 //!
 //! Rust support for the JSON-RPC 2.0 protocol.
-//!
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 // Coding conventions
@@ -64,7 +63,7 @@ pub struct Request<'a> {
     pub method: &'a str,
     /// Parameters to the RPC call.
     pub params: &'a [Box<RawValue>],
-    /// Identifier for this Request, which should appear in the response.
+    /// Identifier for this request, which should appear in the response.
     pub id: serde_json::Value,
     /// jsonrpc field, MUST be "2.0".
     pub jsonrpc: Option<&'a str>,
@@ -77,7 +76,7 @@ pub struct Response {
     pub result: Option<Box<RawValue>>,
     /// An error if there is one, or [`None`].
     pub error: Option<error::RpcError>,
-    /// Identifier for this Request, which should match that of the request.
+    /// Identifier for this response, which should match that of the request.
     pub id: serde_json::Value,
     /// jsonrpc field, MUST be "2.0".
     pub jsonrpc: Option<String>,
