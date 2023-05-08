@@ -20,7 +20,6 @@ pub extern crate base64;
 
 pub mod client;
 pub mod error;
-mod util;
 
 #[cfg(feature = "simple_http")]
 pub mod simple_http;
