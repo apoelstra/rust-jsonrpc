@@ -6,9 +6,6 @@
 use std::os::unix::net::UnixStream;
 use std::{error, fmt, io, path, time};
 
-use serde;
-use serde_json;
-
 use crate::client::Transport;
 use crate::{Request, Response};
 

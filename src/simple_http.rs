@@ -15,10 +15,6 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 use std::{error, fmt, io, net, num};
 
-use base64;
-use serde;
-use serde_json;
-
 use crate::client::Transport;
 use crate::{Request, Response};
 

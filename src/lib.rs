@@ -11,10 +11,13 @@
 
 use serde::{Deserialize, Serialize};
 
-extern crate serde;
+/// Re-export `serde` crate.
+pub extern crate serde;
+/// Re-export `serde_json` crate.
 pub extern crate serde_json;
 
-#[cfg(feature = "base64-compat")]
+/// Re-export `base64` crate.
+#[cfg(feature = "base64")]
 pub extern crate base64;
 
 pub mod client;
