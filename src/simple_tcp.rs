@@ -6,9 +6,6 @@
 
 use std::{error, fmt, io, net, time};
 
-use serde;
-use serde_json;
-
 use crate::client::Transport;
 use crate::{Request, Response};
 
