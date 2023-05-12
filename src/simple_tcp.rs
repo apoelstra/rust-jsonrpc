@@ -1,70 +1,15 @@
 // SPDX-License-Identifier: CC0-1.0
 
-//! This module implements a synchronous transport over a raw TcpListener. Note that
-//! it does not handle TCP over Unix Domain Sockets, see `simple_uds` for this.
-//!
+//! This module implements a synchronous transport over a raw [`std::net::TcpListener`].
+//! Note that it does not handle TCP over Unix Domain Sockets, see `simple_uds` for this.
 
 use std::{error, fmt, io, net, time};
 
 use crate::client::Transport;
 use crate::{Request, Response};
 
-/// Error that can occur while using the TCP transport.
-#[derive(Debug)]
-pub enum Error {
-    /// An error occurred on the socket layer.
-    SocketError(io::Error),
-    /// We didn't receive a complete response till the deadline ran out.
-    Timeout,
-    /// JSON parsing error.
-    Json(serde_json::Error),
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        match *self {
-            Error::SocketError(ref e) => write!(f, "Couldn't connect to host: {}", e),
-            Error::Timeout => f.write_str("Didn't receive response data in time, timed out."),
-            Error::Json(ref e) => write!(f, "JSON error: {}", e),
-        }
-    }
-}
-
-impl error::Error for Error {
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        use self::Error::*;
-
-        match *self {
-            SocketError(ref e) => Some(e),
-            Timeout => None,
-            Json(ref e) => Some(e),
-        }
-    }
-}
-
-impl From<io::Error> for Error {
-    fn from(e: io::Error) -> Self {
-        Error::SocketError(e)
-    }
-}
-
-impl From<serde_json::Error> for Error {
-    fn from(e: serde_json::Error) -> Self {
-        Error::Json(e)
-    }
-}
-
-impl From<Error> for crate::Error {
-    fn from(e: Error) -> crate::Error {
-        match e {
-            Error::Json(e) => crate::Error::Json(e),
-            e => crate::Error::Transport(Box::new(e)),
-        }
-    }
-}
-
-/// Simple synchronous TCP transport.
 #[derive(Debug, Clone)]
+/// Simple synchronous TCP transport.
 pub struct TcpTransport {
     /// The internet socket address to connect to.
     pub addr: net::SocketAddr,
@@ -73,7 +18,7 @@ pub struct TcpTransport {
 }
 
 impl TcpTransport {
-    /// Creates a new TcpTransport without timeouts.
+    /// Creates a new `TcpTransport` without timeouts.
     pub fn new(addr: net::SocketAddr) -> TcpTransport {
         TcpTransport {
             addr,
@@ -111,6 +56,62 @@ impl Transport for TcpTransport {
 
     fn fmt_target(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.addr)
+    }
+}
+
+/// Error that can occur while using the TCP transport.
+#[derive(Debug)]
+pub enum Error {
+    /// An error occurred on the socket layer.
+    SocketError(io::Error),
+    /// We didn't receive a complete response till the deadline ran out.
+    Timeout,
+    /// JSON parsing error.
+    Json(serde_json::Error),
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        use Error::*;
+
+        match *self {
+            SocketError(ref e) => write!(f, "couldn't connect to host: {}", e),
+            Timeout => f.write_str("didn't receive response data in time, timed out."),
+            Json(ref e) => write!(f, "JSON error: {}", e),
+        }
+    }
+}
+
+impl error::Error for Error {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        use self::Error::*;
+
+        match *self {
+            SocketError(ref e) => Some(e),
+            Timeout => None,
+            Json(ref e) => Some(e),
+        }
+    }
+}
+
+impl From<io::Error> for Error {
+    fn from(e: io::Error) -> Self {
+        Error::SocketError(e)
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(e: serde_json::Error) -> Self {
+        Error::Json(e)
+    }
+}
+
+impl From<Error> for crate::Error {
+    fn from(e: Error) -> crate::Error {
+        match e {
+            Error::Json(e) => crate::Error::Json(e),
+            e => crate::Error::Transport(Box::new(e)),
+        }
     }
 }
 

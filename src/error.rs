@@ -2,13 +2,11 @@
 
 //! # Error handling
 //!
-//! Some useful methods for creating Error objects
-//!
+//! Some useful methods for creating Error objects.
 
 use std::{error, fmt};
 
 use serde::{Deserialize, Serialize};
-use serde_json;
 
 use crate::Response;
 
@@ -50,18 +48,18 @@ impl From<RpcError> for Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Error::*;
+
         match *self {
-            Error::Transport(ref e) => write!(f, "transport error: {}", e),
-            Error::Json(ref e) => write!(f, "JSON decode error: {}", e),
-            Error::Rpc(ref r) => write!(f, "RPC error response: {:?}", r),
-            Error::BatchDuplicateResponseId(ref v) => {
-                write!(f, "duplicate RPC batch response ID: {}", v)
-            }
-            Error::WrongBatchResponseId(ref v) => write!(f, "wrong RPC batch response ID: {}", v),
-            Error::NonceMismatch => write!(f, "Nonce of response did not match nonce of request"),
-            Error::VersionMismatch => write!(f, "`jsonrpc` field set to non-\"2.0\""),
-            Error::EmptyBatch => write!(f, "batches can't be empty"),
-            Error::WrongBatchResponseSize => write!(f, "too many responses returned in batch"),
+            Transport(ref e) => write!(f, "transport error: {}", e),
+            Json(ref e) => write!(f, "JSON decode error: {}", e),
+            Rpc(ref r) => write!(f, "RPC error response: {:?}", r),
+            BatchDuplicateResponseId(ref v) => write!(f, "duplicate RPC batch response ID: {}", v),
+            WrongBatchResponseId(ref v) => write!(f, "wrong RPC batch response ID: {}", v),
+            NonceMismatch => write!(f, "nonce of response did not match nonce of request"),
+            VersionMismatch => write!(f, "`jsonrpc` field set to non-\"2.0\""),
+            EmptyBatch => write!(f, "batches can't be empty"),
+            WrongBatchResponseSize => write!(f, "too many responses returned in batch"),
         }
     }
 }
@@ -121,8 +119,8 @@ pub enum StandardError {
     InternalError,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
 /// A JSONRPC error object
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct RpcError {
     /// The integer identifier of the error
     pub code: i32,

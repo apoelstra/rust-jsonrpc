@@ -3,13 +3,10 @@
 //! # Rust JSON-RPC Library
 //!
 //! Rust support for the JSON-RPC 2.0 protocol.
-//!
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 // Coding conventions
 #![warn(missing_docs)]
-
-use serde::{Deserialize, Serialize};
 
 /// Re-export `serde` crate.
 pub extern crate serde;
@@ -22,7 +19,6 @@ pub extern crate base64;
 
 pub mod client;
 pub mod error;
-mod util;
 
 #[cfg(feature = "simple_http")]
 pub mod simple_http;
@@ -33,11 +29,11 @@ pub mod simple_tcp;
 #[cfg(all(feature = "simple_uds", not(windows)))]
 pub mod simple_uds;
 
-// Re-export error type
+use serde::{Deserialize, Serialize};
+use serde_json::value::RawValue;
+
 pub use crate::client::{Client, Transport};
 pub use crate::error::Error;
-
-use serde_json::value::RawValue;
 
 /// Shorthand method to convert an argument into a boxed [`serde_json::value::RawValue`].
 ///
@@ -60,27 +56,27 @@ pub fn arg<T: serde::Serialize>(arg: T) -> Box<RawValue> {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
 /// A JSONRPC request object.
+#[derive(Debug, Clone, Serialize)]
 pub struct Request<'a> {
     /// The name of the RPC call.
     pub method: &'a str,
     /// Parameters to the RPC call.
     pub params: &'a [Box<RawValue>],
-    /// Identifier for this Request, which should appear in the response.
+    /// Identifier for this request, which should appear in the response.
     pub id: serde_json::Value,
     /// jsonrpc field, MUST be "2.0".
     pub jsonrpc: Option<&'a str>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
 /// A JSONRPC response object.
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Response {
     /// A result if there is one, or [`None`].
     pub result: Option<Box<RawValue>>,
     /// An error if there is one, or [`None`].
     pub error: Option<error::RpcError>,
-    /// Identifier for this Request, which should match that of the request.
+    /// Identifier for this response, which should match that of the request.
     pub id: serde_json::Value,
     /// jsonrpc field, MUST be "2.0".
     pub jsonrpc: Option<String>,
