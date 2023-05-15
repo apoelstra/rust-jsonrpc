@@ -1,12 +1,13 @@
-
 extern crate jsonrpc;
 
 #[cfg(not(fuzzing))]
-compile_error!("You must set RUSTFLAGS=--cfg=fuzzing to run these test, or run the actual fuzz harness.");
+compile_error!(
+    "You must set RUSTFLAGS=--cfg=fuzzing to run these test, or run the actual fuzz harness."
+);
 
-use jsonrpc::Client;
 use jsonrpc::simple_http::SimpleHttpTransport;
 use jsonrpc::simple_http::FUZZ_TCP_SOCK;
+use jsonrpc::Client;
 
 use std::io;
 
@@ -14,7 +15,8 @@ fn do_test(data: &[u8]) {
     *FUZZ_TCP_SOCK.lock().unwrap() = Some(io::Cursor::new(data.to_vec()));
 
     let t = SimpleHttpTransport::builder()
-        .url("localhost:123").expect("parse url")
+        .url("localhost:123")
+        .expect("parse url")
         .auth("", None)
         .build();
 
