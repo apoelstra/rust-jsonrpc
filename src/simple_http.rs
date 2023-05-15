@@ -28,6 +28,12 @@ pub const DEFAULT_PROXY_PORT: u16 = 9050;
 /// Absolute maximum content length allowed before cutting off the response.
 const FINAL_RESP_ALLOC: u64 = 1024 * 1024 * 1024;
 
+#[cfg(not(fuzzing))]
+const DEFAULT_TIMEOUT: Duration = Duration::from_secs(15);
+
+#[cfg(fuzzing)]
+const DEFAULT_TIMEOUT: Duration = Duration::from_millis(1);
+
 /// Simple HTTP transport that implements the necessary subset of HTTP for
 /// running a bitcoind RPC client.
 #[derive(Clone, Debug)]
@@ -52,10 +58,7 @@ impl Default for SimpleHttpTransport {
                 DEFAULT_PORT,
             ),
             path: "/".to_owned(),
-            #[cfg(fuzzing)]
-            timeout: Duration::from_millis(1),
-            #[cfg(not(fuzzing))]
-            timeout: Duration::from_secs(15),
+            timeout: DEFAULT_TIMEOUT,
             basic_auth: None,
             #[cfg(feature = "proxy")]
             proxy_addr: net::SocketAddr::new(
@@ -719,7 +722,7 @@ mod tests {
             let builder = Builder::new().url(u).unwrap_or_else(|_| panic!("error for: {}", u));
             assert_eq!(builder.tp.addr, addr);
             assert_eq!(builder.tp.path, path);
-            assert_eq!(builder.tp.timeout, Duration::from_secs(15));
+            assert_eq!(builder.tp.timeout, DEFAULT_TIMEOUT);
             assert_eq!(builder.tp.basic_auth, None);
             #[cfg(feature = "proxy")]
             assert_eq!(builder.tp.proxy_addr, SocketAddr::from_str("127.0.0.1:9050").unwrap());
@@ -778,7 +781,7 @@ mod tests {
 
     /// Test that the client will detect that a socket is closed and open a fresh one before sending
     /// the request
-    #[cfg(not(feature = "proxy"))]
+    #[cfg(all(not(feature = "proxy"), not(fuzzing)))]
     #[test]
     fn request_to_closed_socket() {
         let (tx, rx) = mpsc::sync_channel(1);
