@@ -7,7 +7,7 @@
 #[cfg(feature = "proxy")]
 use socks::Socks5Stream;
 use std::io::{BufRead, BufReader, Read, Write};
-#[cfg(not(fuzzing))]
+#[cfg(not(jsonrpc_fuzz))]
 use std::net::TcpStream;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -23,10 +23,10 @@ use crate::{Request, Response};
 /// Absolute maximum content length allowed before cutting off the response.
 const FINAL_RESP_ALLOC: u64 = 1024 * 1024 * 1024;
 
-#[cfg(not(fuzzing))]
+#[cfg(not(jsonrpc_fuzz))]
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(15);
 
-#[cfg(fuzzing)]
+#[cfg(jsonrpc_fuzz)]
 const DEFAULT_TIMEOUT: Duration = Duration::from_millis(1);
 
 /// Simple HTTP transport that implements the necessary subset of HTTP for
@@ -620,14 +620,14 @@ impl From<Error> for crate::Error {
 }
 
 /// Global mutex used by the fuzzing harness to inject data into the read end of the TCP stream.
-#[cfg(fuzzing)]
+#[cfg(jsonrpc_fuzz)]
 pub static FUZZ_TCP_SOCK: Mutex<Option<io::Cursor<Vec<u8>>>> = Mutex::new(None);
 
-#[cfg(fuzzing)]
+#[cfg(jsonrpc_fuzz)]
 #[derive(Clone, Debug)]
 struct TcpStream;
 
-#[cfg(fuzzing)]
+#[cfg(jsonrpc_fuzz)]
 mod impls {
     use super::*;
     impl Read for TcpStream {
@@ -662,17 +662,8 @@ mod impls {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(not(feature = "proxy"))]
-    use serde_json::{Number, Value};
     use std::net;
-    #[cfg(not(feature = "proxy"))]
-    use std::net::{Shutdown, TcpListener};
-    #[cfg(feature = "proxy")]
     use std::str::FromStr;
-    #[cfg(not(feature = "proxy"))]
-    use std::sync::mpsc;
-    #[cfg(not(feature = "proxy"))]
-    use std::thread;
 
     use super::*;
     use crate::Client;
@@ -776,9 +767,14 @@ mod tests {
 
     /// Test that the client will detect that a socket is closed and open a fresh one before sending
     /// the request
-    #[cfg(all(not(feature = "proxy"), not(fuzzing)))]
+    #[cfg(all(not(feature = "proxy"), not(jsonrpc_fuzz)))]
     #[test]
     fn request_to_closed_socket() {
+        use serde_json::{Number, Value};
+        use std::net::{Shutdown, TcpListener};
+        use std::sync::mpsc;
+        use std::thread;
+
         let (tx, rx) = mpsc::sync_channel(1);
 
         thread::spawn(move || {

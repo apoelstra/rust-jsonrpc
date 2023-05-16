@@ -3,6 +3,10 @@
 //!
 //! [minreq]: <https://github.com/neonmoe/minreq>
 
+#[cfg(jsonrpc_fuzz)]
+use std::io::{self, Read, Write};
+#[cfg(jsonrpc_fuzz)]
+use std::sync::Mutex;
 use std::time::Duration;
 use std::{error, fmt};
 
@@ -11,7 +15,10 @@ use crate::{Request, Response};
 
 const DEFAULT_URL: &str = "http://localhost";
 const DEFAULT_PORT: u16 = 8332; // the default RPC port for bitcoind.
+#[cfg(not(jsonrpc_fuzz))]
 const DEFAULT_TIMEOUT_SECONDS: u64 = 15;
+#[cfg(jsonrpc_fuzz)]
+const DEFAULT_TIMEOUT_SECONDS: u64 = 1;
 
 /// An HTTP transport that uses [`minreq`] and is useful for running a bitcoind RPC client.
 #[derive(Clone, Debug)]
@@ -195,6 +202,36 @@ impl From<Error> for crate::Error {
         match e {
             Error::Json(e) => crate::Error::Json(e),
             e => crate::Error::Transport(Box::new(e)),
+        }
+    }
+}
+
+/// Global mutex used by the fuzzing harness to inject data into the read end of the TCP stream.
+#[cfg(jsonrpc_fuzz)]
+pub static FUZZ_TCP_SOCK: Mutex<Option<io::Cursor<Vec<u8>>>> = Mutex::new(None);
+
+#[cfg(jsonrpc_fuzz)]
+#[derive(Clone, Debug)]
+struct TcpStream;
+
+#[cfg(jsonrpc_fuzz)]
+mod impls {
+    use super::*;
+
+    impl Read for TcpStream {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            match *FUZZ_TCP_SOCK.lock().unwrap() {
+                Some(ref mut cursor) => io::Read::read(cursor, buf),
+                None => Ok(0),
+            }
+        }
+    }
+    impl Write for TcpStream {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            io::sink().write(buf)
+        }
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
         }
     }
 }
