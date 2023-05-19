@@ -14,10 +14,6 @@ honggfuzz_fuzz = ["honggfuzz"]
 honggfuzz = { version = "0.5", optional = true, default-features = false }
 jsonrpc = { path = ".." }
 
-# Prevent this from interfering with workspaces
-[workspace]
-members = ["."]
-
 [[bin]]
 name = "simple_http"
 path = "fuzz_targets/simple_http.rs"
