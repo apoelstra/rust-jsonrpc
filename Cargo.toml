@@ -38,4 +38,4 @@ minreq = { version = "2.7.0", features = ["json-using-serde"], optional = true }
 socks = { version = "0.3.4", optional = true}
 
 [workspace]
-members = ["fuzz"]
+members = ["fuzz", "integration_test"]
