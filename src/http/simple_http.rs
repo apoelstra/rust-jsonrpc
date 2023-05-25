@@ -15,15 +15,10 @@ use std::time::Duration;
 use std::{error, fmt, io, net, num};
 
 use crate::client::Transport;
+use crate::http::DEFAULT_PORT;
+#[cfg(feature = "proxy")]
+use crate::http::DEFAULT_PROXY_PORT;
 use crate::{Request, Response};
-
-/// The default TCP port to use for connections.
-/// Set to 8332, the default RPC port for bitcoind.
-pub const DEFAULT_PORT: u16 = 8332;
-
-/// The Default SOCKS5 Port to use for proxy connection.
-/// Set to 9050, the default RPC port for tor.
-pub const DEFAULT_PROXY_PORT: u16 = 9050;
 
 /// Absolute maximum content length allowed before cutting off the response.
 const FINAL_RESP_ALLOC: u64 = 1024 * 1024 * 1024;

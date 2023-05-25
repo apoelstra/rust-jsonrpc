@@ -19,9 +19,13 @@ pub extern crate base64;
 
 pub mod client;
 pub mod error;
+pub mod http;
 
 #[cfg(feature = "simple_http")]
-pub mod simple_http;
+pub use http::simple_http;
+
+#[cfg(feature = "minreq_http")]
+pub use http::minreq_http;
 
 #[cfg(feature = "simple_tcp")]
 pub mod simple_tcp;
