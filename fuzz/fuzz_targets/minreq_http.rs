@@ -1,6 +1,6 @@
 extern crate jsonrpc;
 
-// Note, tests are if empty "jsonrpc_fuzz" is not set but still show up in output of `cargo test --workspace`.
+// Note, tests are empty if "jsonrpc_fuzz" is not set but still show up in output of `cargo test --workspace`.
 
 #[allow(unused_variables)] // `data` is not used when "jsonrpc_fuzz" is not set.
 fn do_test(data: &[u8]) {
@@ -8,16 +8,16 @@ fn do_test(data: &[u8]) {
     {
         use std::io;
 
-        use jsonrpc::simple_http::SimpleHttpTransport;
-        use jsonrpc::simple_http::FUZZ_TCP_SOCK;
+        use jsonrpc::minreq_http::MinreqHttpTransport;
+        use jsonrpc::minreq_http::FUZZ_TCP_SOCK;
         use jsonrpc::Client;
 
         *FUZZ_TCP_SOCK.lock().unwrap() = Some(io::Cursor::new(data.to_vec()));
 
-        let t = SimpleHttpTransport::builder()
+        let t = MinreqHttpTransport::builder()
             .url("localhost:123")
             .expect("parse url")
-            .auth("", None)
+            .basic_auth("".to_string(), None)
             .build();
 
         let client = Client::with_transport(t);
