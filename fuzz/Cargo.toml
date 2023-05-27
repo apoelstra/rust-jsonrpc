@@ -13,9 +13,9 @@ honggfuzz = { version = "0.5.55", default-features = false }
 jsonrpc = { path = "..", features = ["minreq_http"] }
 
 [[bin]]
-name = "simple_http"
-path = "fuzz_targets/simple_http.rs"
-
-[[bin]]
 name = "minreq_http"
 path = "fuzz_targets/minreq_http.rs"
+
+[[bin]]
+name = "simple_http"
+path = "fuzz_targets/simple_http.rs"

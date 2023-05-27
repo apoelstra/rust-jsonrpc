@@ -16,8 +16,8 @@ jobs:
       fail-fast: false
       matrix:
         fuzz_target: [
-simple_http,
 minreq_http,
+simple_http,
         ]
     steps:
       - name: Install test dependencies
