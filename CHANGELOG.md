@@ -1,5 +1,7 @@
-# Unreleased
+# 0.15.0 - 2023-05-28
 
+* Add new transport that uses `minreq`
+  [#94](https://github.com/apoelstra/rust-jsonrpc/pull/94)
 * Bump MSRV to rust 1.48.0
   [#91](https://github.com/apoelstra/rust-jsonrpc/pull/91)
 
