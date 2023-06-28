@@ -66,9 +66,23 @@ impl MinreqHttpTransport {
                 .with_json(&req)?,
         };
 
+        // Send the request and parse the response. If the response is an error that does not
+        // contain valid JSON in its body (for instance if the bitcoind HTTP server work queue
+        // depth is exceeded), return the raw HTTP error so users can match against it.
         let resp = req.send()?;
-        let json = resp.json()?;
-        Ok(json)
+        match resp.json() {
+            Ok(json) => Ok(json),
+            Err(minreq_err) => {
+                if resp.status_code != 200 {
+                    Err(Error::Http(HttpError {
+                        status_code: resp.status_code,
+                        body: resp.as_str().unwrap_or("").to_string(),
+                    }))
+                } else {
+                    Err(Error::Minreq(minreq_err))
+                }
+            }
+        }
     }
 }
 
@@ -156,13 +170,34 @@ impl Default for Builder {
     }
 }
 
-/// Error that can happen when sending requests.
+/// An HTTP error.
+#[derive(Debug)]
+pub struct HttpError {
+    /// Status code of the error response.
+    pub status_code: i32,
+    /// Raw body of the error response.
+    pub body: String,
+}
+
+impl fmt::Display for HttpError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "status: {}, body: {}", self.status_code, self.body)
+    }
+}
+
+impl error::Error for HttpError {}
+
+/// Error that can happen when sending requests. In case of error, a JSON error is returned if the
+/// body of the response could be parsed as such. Otherwise, an HTTP error is returned containing
+/// the status code and the raw body.
 #[derive(Debug)]
 pub enum Error {
     /// JSON parsing error.
     Json(serde_json::Error),
     /// Minreq error.
     Minreq(minreq::Error),
+    /// HTTP error that does not contain valid JSON as body.
+    Http(HttpError),
 }
 
 impl fmt::Display for Error {
@@ -170,6 +205,7 @@ impl fmt::Display for Error {
         match *self {
             Error::Json(ref e) => write!(f, "parsing JSON failed: {}", e),
             Error::Minreq(ref e) => write!(f, "minreq: {}", e),
+            Error::Http(ref e) => write!(f, "http ({})", e),
         }
     }
 }
@@ -181,6 +217,7 @@ impl error::Error for Error {
         match *self {
             Json(ref e) => Some(e),
             Minreq(ref e) => Some(e),
+            Http(ref e) => Some(e),
         }
     }
 }
