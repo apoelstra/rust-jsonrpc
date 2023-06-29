@@ -1,3 +1,10 @@
+# 0.16.0 - 2023-06-29
+
+* Re-export the `minreq` crate when the feature is set
+  [#102](https://github.com/apoelstra/rust-jsonrpc/pull/102)
+* Don't treat HTTP errors with no JSON as JSON parsing errors
+  [#103](https://github.com/apoelstra/rust-jsonrpc/pull/103)
+
 # 0.15.0 - 2023-05-28
 
 * Add new transport that uses `minreq`
