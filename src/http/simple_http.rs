@@ -663,6 +663,7 @@ mod impls {
 #[cfg(test)]
 mod tests {
     use std::net;
+    #[cfg(feature = "proxy")]
     use std::str::FromStr;
 
     use super::*;
