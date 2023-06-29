@@ -190,6 +190,7 @@ impl error::Error for HttpError {}
 /// Error that can happen when sending requests. In case of error, a JSON error is returned if the
 /// body of the response could be parsed as such. Otherwise, an HTTP error is returned containing
 /// the status code and the raw body.
+#[non_exhaustive]
 #[derive(Debug)]
 pub enum Error {
     /// JSON parsing error.
