@@ -21,7 +21,7 @@ fn do_test(data: &[u8]) {
             .build();
 
         let client = Client::with_transport(t);
-        let request = client.build_request("uptime", &[]);
+        let request = client.build_request("uptime", None);
         let _ = client.send_request(request);
     }
 }

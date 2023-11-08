@@ -134,7 +134,7 @@ mod tests {
         let addr = server.local_addr().unwrap();
         let dummy_req = Request {
             method: "arandommethod",
-            params: &[],
+            params: None,
             id: serde_json::Value::Number(4242242.into()),
             jsonrpc: Some("2.0"),
         };

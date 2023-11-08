@@ -818,11 +818,11 @@ mod tests {
         let port = rx.recv().unwrap();
         let client =
             Client::simple_http(format!("localhost:{}", port).as_str(), None, None).unwrap();
-        let request = client.build_request("test_request", &[]);
+        let request = client.build_request("test_request", None);
         let result = client.send_request(request).unwrap();
         assert_eq!(result.id, Value::Number(Number::from(0)));
         thread::sleep(Duration::from_secs(1));
-        let request = client.build_request("test_request2", &[]);
+        let request = client.build_request("test_request2", None);
         let result2 = client.send_request(request)
             .expect("This second request should not be an Err like `Err(Transport(HttpResponseTooShort { actual: 0, needed: 12 }))`");
         assert_eq!(result2.id, Value::Number(Number::from(1)));

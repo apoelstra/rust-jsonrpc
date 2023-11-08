@@ -140,7 +140,7 @@ fn main() {
 fn test_get_network_info(cl: &Client) {
     let request = Request {
         method: "getnetworkinfo".into(),
-        params: &[],
+        params: None,
         id: serde_json::json!(1),
         jsonrpc: Some("2.0"),
     };

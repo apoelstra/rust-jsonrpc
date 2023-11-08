@@ -70,7 +70,7 @@ pub struct Request<'a> {
     /// The name of the RPC call.
     pub method: &'a str,
     /// Parameters to the RPC call.
-    pub params: &'a [Box<RawValue>],
+    pub params: Option<&'a RawValue>,
     /// Identifier for this request, which should appear in the response.
     pub id: serde_json::Value,
     /// jsonrpc field, MUST be "2.0".
