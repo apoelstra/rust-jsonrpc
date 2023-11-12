@@ -584,6 +584,23 @@ impl crate::Client {
         Ok(crate::Client::with_transport(builder.build()))
     }
 
+    /// Creates a new JSON-RPC client using a bare-minimum HTTP transport.
+    pub fn simple_http_with_timeout(
+        url: &str,
+        user: Option<String>,
+        pass: Option<String>,
+        timeout: Option<Duration>,
+    ) -> Result<crate::Client, Error> {
+        let mut builder = Builder::new().url(url)?;
+        if let Some(user) = user {
+            builder = builder.auth(user, pass);
+        }
+        if let Some(timeout) = timeout {
+            builder = builder.timeout(timeout);
+        }
+        Ok(crate::Client::with_transport(builder.build()))
+    }
+
     #[cfg(feature = "proxy")]
     /// Creates a new JSON_RPC client using a HTTP-Socks5 proxy transport.
     pub fn http_proxy(
