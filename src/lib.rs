@@ -123,7 +123,10 @@ impl Response {
 mod tests {
     use super::*;
 
-    use serde_json::value::RawValue;
+    use serde_json::{
+        json,
+        value::{to_raw_value, RawValue},
+    };
 
     #[test]
     fn response_is_none() {
@@ -217,6 +220,40 @@ mod tests {
                 v: String::from("test"),
             },
             Test
+        );
+    }
+
+    #[test]
+    fn test_request_list() {
+        let list = json!([0]);
+        let raw_value = Some(to_raw_value(&list).unwrap());
+
+        let request = Request {
+            method: "list",
+            params: raw_value.as_deref(),
+            id: serde_json::json!(2),
+            jsonrpc: Some("2.0"),
+        };
+        assert_eq!(
+            serde_json::to_string(&request).unwrap(),
+            r#"{"method":"list","params":[0],"id":2,"jsonrpc":"2.0"}"#
+        );
+    }
+
+    #[test]
+    fn test_request_object() {
+        let object = json!({ "height": 0 });
+        let raw_value = Some(to_raw_value(&object).unwrap());
+
+        let request = Request {
+            method: "object",
+            params: raw_value.as_deref(),
+            id: serde_json::json!(2),
+            jsonrpc: Some("2.0"),
+        };
+        assert_eq!(
+            serde_json::to_string(&request).unwrap(),
+            r#"{"method":"object","params":{"height":0},"id":2,"jsonrpc":"2.0"}"#
         );
     }
 }
