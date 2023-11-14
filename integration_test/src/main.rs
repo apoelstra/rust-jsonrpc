@@ -22,6 +22,8 @@ use backtrace::Backtrace;
 
 use jsonrpc::http::minreq_http;
 use jsonrpc::{Client, Request};
+use serde_json::json;
+use serde_json::value::to_raw_value;
 
 struct StdLogger;
 
@@ -113,6 +115,9 @@ fn main() {
 
     run_test!(test_get_network_info);
 
+    run_test!(test_get_block_hash_list);
+    run_test!(test_get_block_hash_named);
+
     // Print results
     println!("");
     println!("");
@@ -146,4 +151,40 @@ fn test_get_network_info(cl: &Client) {
     };
 
     let _ = cl.send_request(request).unwrap();
+}
+
+fn test_get_block_hash_list(cl: &Client) {
+    let param = json!([0]);
+    let raw_value = Some(to_raw_value(&param).unwrap());
+
+    let request = Request {
+        method: "getblockhash".into(),
+        params: raw_value.as_deref(),
+        id: serde_json::json!(2),
+        jsonrpc: Some("2.0"),
+    };
+
+    let resp = cl.send_request(request).unwrap();
+    assert_eq!(
+        resp.result.unwrap().to_string(),
+        "\"0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206\""
+    );
+}
+
+fn test_get_block_hash_named(cl: &Client) {
+    let param = json!({ "height": 0 });
+    let raw_value = Some(to_raw_value(&param).unwrap());
+
+    let request = Request {
+        method: "getblockhash".into(),
+        params: raw_value.as_deref(),
+        id: serde_json::json!(2),
+        jsonrpc: Some("2.0"),
+    };
+
+    let resp = cl.send_request(request).unwrap();
+    assert_eq!(
+        resp.result.unwrap().to_string(),
+        "\"0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206\""
+    );
 }
