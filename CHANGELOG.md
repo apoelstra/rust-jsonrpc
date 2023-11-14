@@ -1,3 +1,8 @@
+# 0.17.0 - 2023-06-29
+
+* `params` field in `Request` changed to a generic `RawValue` instead of an array.
+  [#108](https://github.com/apoelstra/rust-jsonrpc/pull/108)
+
 # 0.16.0 - 2023-06-29
 
 * Re-export the `minreq` crate when the feature is set
