@@ -37,7 +37,7 @@ fn client(url: &str, user: &str, pass: &str) -> Result<Client, simple_http::Erro
 // Demonstrate an example JSON-RCP call against bitcoind.
 fn main() {
     let client = client("localhost:18443", "user", "pass").expect("failed to create client");
-    let request = client.build_request("uptime", &[]);
+    let request = client.build_request("uptime", None);
     let response = client.send_request(request).expect("send_request failed");
 
     // For other commands this would be a struct matching the returned json.

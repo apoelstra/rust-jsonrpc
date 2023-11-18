@@ -137,7 +137,7 @@ mod tests {
         let server = UnixListener::bind(&socket_path).unwrap();
         let dummy_req = Request {
             method: "getinfo",
-            params: &[],
+            params: None,
             id: serde_json::Value::Number(111.into()),
             jsonrpc: Some("2.0"),
         };
