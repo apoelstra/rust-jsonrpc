@@ -1,4 +1,4 @@
-# 0.17.0 - 2023-06-29
+# 0.17.0 - 2023-12-22
 
 * `params` field in `Request` changed to a generic `RawValue` instead of an array.
   [#108](https://github.com/apoelstra/rust-jsonrpc/pull/108)
