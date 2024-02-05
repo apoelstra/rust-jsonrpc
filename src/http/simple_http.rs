@@ -229,6 +229,14 @@ impl SimpleHttpTransport {
                         .map_err(|e| Error::HttpResponseBadContentLength(s.into(), e))?,
                 );
             }
+
+            const TRANSFER_ENCODING: &str = "transfer-encoding: ";
+            if let Some(s) = header_buf.strip_prefix(TRANSFER_ENCODING) {
+                const CHUNKED: &str = "chunked";
+                if s.trim() == CHUNKED {
+                    return Err(Error::HttpResponseChunked);
+                }
+            }
         }
 
         if response_code == 401 {
@@ -492,6 +500,8 @@ pub enum Error {
         /// Our hard maximum on number of bytes we'll try to read.
         max: u64,
     },
+    /// The server is replying with chunked encoding which is not supported
+    HttpResponseChunked,
     /// Unexpected HTTP error code (non-200).
     HttpErrorCode(u16),
     /// Received EOF before getting as many bytes as were indicated by the content-length header.
@@ -564,6 +574,9 @@ impl fmt::Display for Error {
                 )
             }
             Json(ref e) => write!(f, "JSON error: {}", e),
+            HttpResponseChunked => {
+                write!(f, "The server replied with a chunked response which is not supported")
+            }
         }
     }
 }
@@ -591,7 +604,8 @@ impl error::Error for Error {
             | HttpErrorCode(_)
             | IncompleteResponse {
                 ..
-            } => None,
+            }
+            | HttpResponseChunked => None,
             SocketError(ref e) => Some(e),
             Json(ref e) => Some(e),
         }
