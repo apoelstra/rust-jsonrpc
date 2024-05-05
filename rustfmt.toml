@@ -1,5 +1,4 @@
 ignore = []
-
 hard_tabs = false
 tab_spaces = 4
 newline_style = "Auto"
@@ -50,7 +49,7 @@ enum_discrim_align_threshold = 0
 match_arm_blocks = false        # Default true
 match_arm_leading_pipes = "Never"
 force_multiline_blocks = false
-fn_args_layout = "Tall"
+fn_params_layout = "Tall"
 brace_style = "SameLineWhere"
 control_brace_style = "AlwaysSameLine"
 trailing_semicolon = true
@@ -68,7 +67,6 @@ use_field_init_shorthand = false
 force_explicit_abi = true
 condense_wildcard_suffixes = false
 color = "Auto"
-required_version = "1.5.1"
 unstable_features = false
 disable_all_formatting = false
 skip_children = false

@@ -43,14 +43,10 @@ impl Default for MinreqHttpTransport {
 
 impl MinreqHttpTransport {
     /// Constructs a new [`MinreqHttpTransport`] with default parameters.
-    pub fn new() -> Self {
-        MinreqHttpTransport::default()
-    }
+    pub fn new() -> Self { MinreqHttpTransport::default() }
 
     /// Returns a builder for [`MinreqHttpTransport`].
-    pub fn builder() -> Builder {
-        Builder::new()
-    }
+    pub fn builder() -> Builder { Builder::new() }
 
     fn request<R>(&self, req: impl serde::Serialize) -> Result<R, Error>
     where
@@ -72,7 +68,7 @@ impl MinreqHttpTransport {
         let resp = req.send()?;
         match resp.json() {
             Ok(json) => Ok(json),
-            Err(minreq_err) => {
+            Err(minreq_err) =>
                 if resp.status_code != 200 {
                     Err(Error::Http(HttpError {
                         status_code: resp.status_code,
@@ -80,8 +76,7 @@ impl MinreqHttpTransport {
                     }))
                 } else {
                     Err(Error::Minreq(minreq_err))
-                }
-            }
+                },
         }
     }
 }
@@ -95,9 +90,7 @@ impl Transport for MinreqHttpTransport {
         Ok(self.request(reqs)?)
     }
 
-    fn fmt_target(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.url)
-    }
+    fn fmt_target(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "{}", self.url) }
 }
 
 /// Builder for simple bitcoind [`MinreqHttpTransport`].
@@ -108,11 +101,7 @@ pub struct Builder {
 
 impl Builder {
     /// Constructs a new [`Builder`] with default configuration and the URL to use.
-    pub fn new() -> Builder {
-        Builder {
-            tp: MinreqHttpTransport::new(),
-        }
-    }
+    pub fn new() -> Builder { Builder { tp: MinreqHttpTransport::new() } }
 
     /// Sets the timeout after which requests will abort if they aren't finished.
     pub fn timeout(mut self, timeout: Duration) -> Self {
@@ -160,15 +149,11 @@ impl Builder {
     }
 
     /// Builds the final [`MinreqHttpTransport`].
-    pub fn build(self) -> MinreqHttpTransport {
-        self.tp
-    }
+    pub fn build(self) -> MinreqHttpTransport { self.tp }
 }
 
 impl Default for Builder {
-    fn default() -> Self {
-        Builder::new()
-    }
+    fn default() -> Self { Builder::new() }
 }
 
 /// An HTTP error.
@@ -225,15 +210,11 @@ impl error::Error for Error {
 }
 
 impl From<serde_json::Error> for Error {
-    fn from(e: serde_json::Error) -> Self {
-        Error::Json(e)
-    }
+    fn from(e: serde_json::Error) -> Self { Error::Json(e) }
 }
 
 impl From<minreq::Error> for Error {
-    fn from(e: minreq::Error) -> Self {
-        Error::Minreq(e)
-    }
+    fn from(e: minreq::Error) -> Self { Error::Minreq(e) }
 }
 
 impl From<Error> for crate::Error {
@@ -266,12 +247,8 @@ mod impls {
         }
     }
     impl Write for TcpStream {
-        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-            io::sink().write(buf)
-        }
-        fn flush(&mut self) -> io::Result<()> {
-            Ok(())
-        }
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> { io::sink().write(buf) }
+        fn flush(&mut self) -> io::Result<()> { Ok(()) }
     }
 }
 

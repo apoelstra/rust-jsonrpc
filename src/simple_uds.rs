@@ -20,10 +20,7 @@ pub struct UdsTransport {
 impl UdsTransport {
     /// Creates a new [`UdsTransport`] without timeouts to use.
     pub fn new<P: AsRef<path::Path>>(sockpath: P) -> UdsTransport {
-        UdsTransport {
-            sockpath: sockpath.as_ref().to_path_buf(),
-            timeout: None,
-        }
+        UdsTransport { sockpath: sockpath.as_ref().to_path_buf(), timeout: None }
     }
 
     fn request<R>(&self, req: impl serde::Serialize) -> Result<R, Error>
@@ -95,15 +92,11 @@ impl error::Error for Error {
 }
 
 impl From<io::Error> for Error {
-    fn from(e: io::Error) -> Self {
-        Error::SocketError(e)
-    }
+    fn from(e: io::Error) -> Self { Error::SocketError(e) }
 }
 
 impl From<serde_json::Error> for Error {
-    fn from(e: serde_json::Error) -> Self {
-        Error::Json(e)
-    }
+    fn from(e: serde_json::Error) -> Self { Error::Json(e) }
 }
 
 impl From<Error> for crate::error::Error {
@@ -117,12 +110,9 @@ impl From<Error> for crate::error::Error {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        fs,
-        io::{Read, Write},
-        os::unix::net::UnixListener,
-        process, thread,
-    };
+    use std::io::{Read, Write};
+    use std::os::unix::net::UnixListener;
+    use std::{fs, process, thread};
 
     use super::*;
     use crate::Client;

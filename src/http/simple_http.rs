@@ -4,8 +4,6 @@
 //! round-tripper that works with the bitcoind RPC server. This can be used
 //! if minimal dependencies are a goal and synchronous communication is ok.
 
-#[cfg(feature = "proxy")]
-use socks::Socks5Stream;
 use std::io::{BufRead, BufReader, Read, Write};
 #[cfg(not(jsonrpc_fuzz))]
 use std::net::TcpStream;
@@ -13,6 +11,9 @@ use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 use std::{error, fmt, io, net, num};
+
+#[cfg(feature = "proxy")]
+use socks::Socks5Stream;
 
 use crate::client::Transport;
 use crate::http::DEFAULT_PORT;
@@ -69,14 +70,10 @@ impl Default for SimpleHttpTransport {
 
 impl SimpleHttpTransport {
     /// Constructs a new [`SimpleHttpTransport`] with default parameters.
-    pub fn new() -> Self {
-        SimpleHttpTransport::default()
-    }
+    pub fn new() -> Self { SimpleHttpTransport::default() }
 
     /// Returns a builder for [`SimpleHttpTransport`].
-    pub fn builder() -> Builder {
-        Builder::new()
-    }
+    pub fn builder() -> Builder { Builder::new() }
 
     /// Replaces the URL of the transport.
     pub fn set_url(&mut self, url: &str) -> Result<(), Error> {
@@ -87,9 +84,7 @@ impl SimpleHttpTransport {
     }
 
     /// Replaces only the path part of the URL.
-    pub fn set_url_path(&mut self, path: String) {
-        self.path = path;
-    }
+    pub fn set_url_path(&mut self, path: String) { self.path = path; }
 
     fn request<R>(&self, req: impl serde::Serialize) -> Result<R, Error>
     where
@@ -192,10 +187,7 @@ impl SimpleHttpTransport {
         }
 
         if header_buf.len() < 12 {
-            return Err(Error::HttpResponseTooShort {
-                actual: header_buf.len(),
-                needed: 12,
-            });
+            return Err(Error::HttpResponseTooShort { actual: header_buf.len(), needed: 12 });
         }
         if !header_buf.as_bytes()[..12].is_ascii() {
             return Err(Error::HttpResponseNonAsciiHello(header_buf.as_bytes()[..12].to_vec()));
@@ -362,11 +354,7 @@ pub struct Builder {
 
 impl Builder {
     /// Constructs a new [`Builder`] with default configuration.
-    pub fn new() -> Builder {
-        Builder {
-            tp: SimpleHttpTransport::new(),
-        }
-    }
+    pub fn new() -> Builder { Builder { tp: SimpleHttpTransport::new() } }
 
     /// Sets the timeout after which requests will abort if they aren't finished.
     pub fn timeout(mut self, timeout: Duration) -> Self {
@@ -414,15 +402,11 @@ impl Builder {
     }
 
     /// Builds the final [`SimpleHttpTransport`].
-    pub fn build(self) -> SimpleHttpTransport {
-        self.tp
-    }
+    pub fn build(self) -> SimpleHttpTransport { self.tp }
 }
 
 impl Default for Builder {
-    fn default() -> Self {
-        Builder::new()
-    }
+    fn default() -> Self { Builder::new() }
 }
 
 impl crate::Client {
@@ -518,10 +502,7 @@ pub enum Error {
 impl Error {
     /// Utility method to create [`Error::InvalidUrl`] variants.
     fn url<U: Into<String>>(url: U, reason: &'static str) -> Error {
-        Error::InvalidUrl {
-            url: url.into(),
-            reason,
-        }
+        Error::InvalidUrl { url: url.into(), reason }
     }
 }
 
@@ -530,24 +511,15 @@ impl fmt::Display for Error {
         use Error::*;
 
         match *self {
-            InvalidUrl {
-                ref url,
-                ref reason,
-            } => write!(f, "invalid URL '{}': {}", url, reason),
+            InvalidUrl { ref url, ref reason } => write!(f, "invalid URL '{}': {}", url, reason),
             SocketError(ref e) => write!(f, "Couldn't connect to host: {}", e),
-            HttpResponseTooShort {
-                ref actual,
-                ref needed,
-            } => {
+            HttpResponseTooShort { ref actual, ref needed } => {
                 write!(f, "HTTP response too short: length {}, needed {}.", actual, needed)
             }
             HttpResponseNonAsciiHello(ref bytes) => {
                 write!(f, "HTTP response started with non-ASCII {:?}", bytes)
             }
-            HttpResponseBadHello {
-                ref actual,
-                ref expected,
-            } => {
+            HttpResponseBadHello { ref actual, ref expected } => {
                 write!(f, "HTTP response started with `{}`; expected `{}`.", actual, expected)
             }
             HttpResponseBadStatus(ref status, ref err) => {
@@ -556,17 +528,11 @@ impl fmt::Display for Error {
             HttpResponseBadContentLength(ref len, ref err) => {
                 write!(f, "HTTP response had bad content length `{}`: {}.", len, err)
             }
-            HttpResponseContentLengthTooLarge {
-                length,
-                max,
-            } => {
+            HttpResponseContentLengthTooLarge { length, max } => {
                 write!(f, "HTTP response content length {} exceeds our max {}.", length, max)
             }
             HttpErrorCode(c) => write!(f, "unexpected HTTP code: {}", c),
-            IncompleteResponse {
-                content_length,
-                n_read,
-            } => {
+            IncompleteResponse { content_length, n_read } => {
                 write!(
                     f,
                     "read {} bytes but HTTP response content-length header was {}.",
@@ -586,25 +552,15 @@ impl error::Error for Error {
         use self::Error::*;
 
         match *self {
-            InvalidUrl {
-                ..
-            }
-            | HttpResponseTooShort {
-                ..
-            }
+            InvalidUrl { .. }
+            | HttpResponseTooShort { .. }
             | HttpResponseNonAsciiHello(..)
-            | HttpResponseBadHello {
-                ..
-            }
+            | HttpResponseBadHello { .. }
             | HttpResponseBadStatus(..)
             | HttpResponseBadContentLength(..)
-            | HttpResponseContentLengthTooLarge {
-                ..
-            }
+            | HttpResponseContentLengthTooLarge { .. }
             | HttpErrorCode(_)
-            | IncompleteResponse {
-                ..
-            }
+            | IncompleteResponse { .. }
             | HttpResponseChunked => None,
             SocketError(ref e) => Some(e),
             Json(ref e) => Some(e),
@@ -613,15 +569,11 @@ impl error::Error for Error {
 }
 
 impl From<io::Error> for Error {
-    fn from(e: io::Error) -> Self {
-        Error::SocketError(e)
-    }
+    fn from(e: io::Error) -> Self { Error::SocketError(e) }
 }
 
 impl From<serde_json::Error> for Error {
-    fn from(e: serde_json::Error) -> Self {
-        Error::Json(e)
-    }
+    fn from(e: serde_json::Error) -> Self { Error::Json(e) }
 }
 
 impl From<Error> for crate::Error {
@@ -653,24 +605,14 @@ mod impls {
         }
     }
     impl Write for TcpStream {
-        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-            io::sink().write(buf)
-        }
-        fn flush(&mut self) -> io::Result<()> {
-            Ok(())
-        }
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> { io::sink().write(buf) }
+        fn flush(&mut self) -> io::Result<()> { Ok(()) }
     }
 
     impl TcpStream {
-        pub fn connect_timeout(_: &SocketAddr, _: Duration) -> io::Result<Self> {
-            Ok(TcpStream)
-        }
-        pub fn set_read_timeout(&self, _: Option<Duration>) -> io::Result<()> {
-            Ok(())
-        }
-        pub fn set_write_timeout(&self, _: Option<Duration>) -> io::Result<()> {
-            Ok(())
-        }
+        pub fn connect_timeout(_: &SocketAddr, _: Duration) -> io::Result<Self> { Ok(TcpStream) }
+        pub fn set_read_timeout(&self, _: Option<Duration>) -> io::Result<()> { Ok(()) }
+        pub fn set_write_timeout(&self, _: Option<Duration>) -> io::Result<()> { Ok(()) }
     }
 }
 
@@ -785,10 +727,11 @@ mod tests {
     #[cfg(all(not(feature = "proxy"), not(jsonrpc_fuzz)))]
     #[test]
     fn request_to_closed_socket() {
-        use serde_json::{Number, Value};
         use std::net::{Shutdown, TcpListener};
         use std::sync::mpsc;
         use std::thread;
+
+        use serde_json::{Number, Value};
 
         let (tx, rx) = mpsc::sync_channel(1);
 

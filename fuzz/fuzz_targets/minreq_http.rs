@@ -8,8 +8,7 @@ fn do_test(data: &[u8]) {
     {
         use std::io;
 
-        use jsonrpc::minreq_http::MinreqHttpTransport;
-        use jsonrpc::minreq_http::FUZZ_TCP_SOCK;
+        use jsonrpc::minreq_http::{MinreqHttpTransport, FUZZ_TCP_SOCK};
         use jsonrpc::Client;
 
         *FUZZ_TCP_SOCK.lock().unwrap() = Some(io::Cursor::new(data.to_vec()));
@@ -56,7 +55,5 @@ mod tests {
     }
 
     #[test]
-    fn duplicate_crash() {
-        super::do_test(&extend_vec_from_hex("00"));
-    }
+    fn duplicate_crash() { super::do_test(&extend_vec_from_hex("00")); }
 }
