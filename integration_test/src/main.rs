@@ -143,7 +143,7 @@ fn main() {
 
 fn test_get_network_info(cl: &Client) {
     let request = Request {
-        method: "getnetworkinfo".into(),
+        method: "getnetworkinfo",
         params: None,
         id: serde_json::json!(1),
         jsonrpc: Some("2.0"),
@@ -157,7 +157,7 @@ fn test_get_block_hash_list(cl: &Client) {
     let raw_value = Some(to_raw_value(&param).unwrap());
 
     let request = Request {
-        method: "getblockhash".into(),
+        method: "getblockhash",
         params: raw_value.as_deref(),
         id: serde_json::json!(2),
         jsonrpc: Some("2.0"),
@@ -175,7 +175,7 @@ fn test_get_block_hash_named(cl: &Client) {
     let raw_value = Some(to_raw_value(&param).unwrap());
 
     let request = Request {
-        method: "getblockhash".into(),
+        method: "getblockhash",
         params: raw_value.as_deref(),
         id: serde_json::json!(2),
         jsonrpc: Some("2.0"),
