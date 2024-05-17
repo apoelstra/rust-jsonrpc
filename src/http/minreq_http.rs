@@ -121,6 +121,7 @@ impl Builder {
     }
 
     /// Sets the URL of the server to the transport.
+    #[allow(clippy::assigning_clones)] // clone_into is only available in Rust 1.63
     pub fn url(mut self, url: &str) -> Result<Self, Error> {
         self.tp.url = url.to_owned();
         Ok(self)
