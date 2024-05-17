@@ -50,8 +50,8 @@ fn get_rpc_url() -> String {
 
 fn get_auth() -> (String, Option<String>) {
     if let Ok(cookie) = std::env::var("RPC_COOKIE") {
-        let contents =
-            fs::read_to_string(&cookie).expect(&format!("failed to read cookie file: {}", cookie));
+        let contents = fs::read_to_string(&cookie)
+            .unwrap_or_else(|_| panic!("failed to read cookie file: {}", cookie));
         let mut split = contents.split(':');
         let user = split.next().expect("failed to get username from cookie file");
         let pass = split.next().map_or("".to_string(), |s| s.to_string());
