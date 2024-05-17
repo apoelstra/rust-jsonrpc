@@ -118,8 +118,8 @@ fn main() {
     run_test!(test_get_block_hash_named);
 
     // Print results
-    println!("");
-    println!("");
+    println!();
+    println!();
     println!("Summary:");
     let mut error_count = 0;
     for (name, success) in RESULTS.lock().unwrap().iter() {
@@ -131,7 +131,7 @@ fn main() {
         }
     }
 
-    println!("");
+    println!();
 
     if error_count == 0 {
         println!("All tests succesful!");
