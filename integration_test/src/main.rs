@@ -45,7 +45,7 @@ impl log::Log for StdLogger {
 static LOGGER: StdLogger = StdLogger;
 
 fn get_rpc_url() -> String {
-    return std::env::var("RPC_URL").expect("RPC_URL must be set");
+    std::env::var("RPC_URL").expect("RPC_URL must be set")
 }
 
 fn get_auth() -> (String, Option<String>) {
@@ -55,12 +55,12 @@ fn get_auth() -> (String, Option<String>) {
         let mut split = contents.split(':');
         let user = split.next().expect("failed to get username from cookie file");
         let pass = split.next().map_or("".to_string(), |s| s.to_string());
-        return (user.to_string(), Some(pass));
+        (user.to_string(), Some(pass))
     } else if let Ok(user) = std::env::var("RPC_USER") {
-        return (user, std::env::var("RPC_PASS").ok());
+        (user, std::env::var("RPC_PASS").ok())
     } else {
-        panic!("Either RPC_COOKIE or RPC_USER + RPC_PASS must be set.");
-    };
+        panic!("Either RPC_COOKIE or RPC_USER + RPC_PASS must be set.")
+    }
 }
 
 fn make_client() -> Client {
