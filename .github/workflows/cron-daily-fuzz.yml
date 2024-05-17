@@ -2,11 +2,12 @@
 name: Fuzz
 
 on:
-  push:
-    branches:
-      - master
-      - 'test-ci/**'
-  pull_request:
+  schedule:
+    # 6am every day UTC, this correlates to:
+    # - 11pm PDT
+    # - 7am CET
+    # - 5pm AEDT
+    - cron: '00 06 * * *'
 
 jobs:
   fuzz:
@@ -22,8 +23,8 @@ simple_http,
     steps:
       - name: Install test dependencies
         run: sudo apt-get update -y && sudo apt-get install -y binutils-dev libunwind8-dev libcurl4-openssl-dev libelf-dev libdw-dev cmake gcc libiberty-dev
-      - uses: actions/checkout@v2
-      - uses: actions/cache@v2
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
         id: cache-fuzz
         with:
           path: |
@@ -31,11 +32,9 @@ simple_http,
             fuzz/target
             target
           key: cache-${{ matrix.target }}-${{ hashFiles('**/Cargo.toml','**/Cargo.lock') }}
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.69
-          override: true
-          profile: minimal
+          toolchain: '1.65.0'
       - name: fuzz
         run: |
           export RUSTFLAGS='--cfg=jsonrpc_fuzz'
