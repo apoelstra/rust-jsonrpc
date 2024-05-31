@@ -15,8 +15,9 @@
 extern crate lazy_static;
 
 use std::cell::RefCell;
+use std::sync::Mutex;
 use std::time::Duration;
-use std::{fs, mem, panic};
+use std::{fs, panic};
 
 use backtrace::Backtrace;
 
@@ -75,15 +76,15 @@ fn make_client() -> Client {
 
 lazy_static! {
     static ref CLIENT: Client = make_client();
+
+    /// Here we will collect all the results of the individual tests, preserving ordering.
+    /// Ideally this would be preset with capacity, but static prevents this.
+    static ref RESULTS: Mutex<Vec<(&'static str, bool)>> = Mutex::new(Vec::new());
 }
 
 thread_local! {
     static LAST_PANIC: RefCell<Option<(String, Backtrace)>> = RefCell::new(None);
 }
-
-/// Here we will collect all the results of the individual tests, preserving ordering.
-/// Ideally this would be preset with capacity, but static prevents this.
-static mut RESULTS: Vec<(&'static str, bool)> = Vec::new();
 
 macro_rules! run_test {
     ($method:ident) => {
@@ -98,9 +99,7 @@ macro_rules! run_test {
             println!("--");
         }
 
-        unsafe {
-            RESULTS.push((stringify!($method), result.is_ok()));
-        }
+        RESULTS.lock().unwrap().push((stringify!($method), result.is_ok()));
     };
 }
 
@@ -123,7 +122,7 @@ fn main() {
     println!("");
     println!("Summary:");
     let mut error_count = 0;
-    for (name, success) in mem::replace(unsafe { &mut RESULTS }, Vec::new()).into_iter() {
+    for (name, success) in RESULTS.lock().unwrap().iter() {
         if !success {
             println!(" - {}: FAILED", name);
             error_count += 1;
