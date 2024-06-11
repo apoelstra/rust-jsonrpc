@@ -45,22 +45,22 @@ impl log::Log for StdLogger {
 static LOGGER: StdLogger = StdLogger;
 
 fn get_rpc_url() -> String {
-    return std::env::var("RPC_URL").expect("RPC_URL must be set");
+    std::env::var("RPC_URL").expect("RPC_URL must be set")
 }
 
 fn get_auth() -> (String, Option<String>) {
     if let Ok(cookie) = std::env::var("RPC_COOKIE") {
-        let contents =
-            fs::read_to_string(&cookie).expect(&format!("failed to read cookie file: {}", cookie));
+        let contents = fs::read_to_string(&cookie)
+            .unwrap_or_else(|_| panic!("failed to read cookie file: {}", cookie));
         let mut split = contents.split(':');
         let user = split.next().expect("failed to get username from cookie file");
         let pass = split.next().map_or("".to_string(), |s| s.to_string());
-        return (user.to_string(), Some(pass));
+        (user.to_string(), Some(pass))
     } else if let Ok(user) = std::env::var("RPC_USER") {
-        return (user, std::env::var("RPC_PASS").ok());
+        (user, std::env::var("RPC_PASS").ok())
     } else {
-        panic!("Either RPC_COOKIE or RPC_USER + RPC_PASS must be set.");
-    };
+        panic!("Either RPC_COOKIE or RPC_USER + RPC_PASS must be set.")
+    }
 }
 
 fn make_client() -> Client {
@@ -118,8 +118,8 @@ fn main() {
     run_test!(test_get_block_hash_named);
 
     // Print results
-    println!("");
-    println!("");
+    println!();
+    println!();
     println!("Summary:");
     let mut error_count = 0;
     for (name, success) in RESULTS.lock().unwrap().iter() {
@@ -131,7 +131,7 @@ fn main() {
         }
     }
 
-    println!("");
+    println!();
 
     if error_count == 0 {
         println!("All tests succesful!");
@@ -143,7 +143,7 @@ fn main() {
 
 fn test_get_network_info(cl: &Client) {
     let request = Request {
-        method: "getnetworkinfo".into(),
+        method: "getnetworkinfo",
         params: None,
         id: serde_json::json!(1),
         jsonrpc: Some("2.0"),
@@ -157,7 +157,7 @@ fn test_get_block_hash_list(cl: &Client) {
     let raw_value = Some(to_raw_value(&param).unwrap());
 
     let request = Request {
-        method: "getblockhash".into(),
+        method: "getblockhash",
         params: raw_value.as_deref(),
         id: serde_json::json!(2),
         jsonrpc: Some("2.0"),
@@ -175,7 +175,7 @@ fn test_get_block_hash_named(cl: &Client) {
     let raw_value = Some(to_raw_value(&param).unwrap());
 
     let request = Request {
-        method: "getblockhash".into(),
+        method: "getblockhash",
         params: raw_value.as_deref(),
         id: serde_json::json!(2),
         jsonrpc: Some("2.0"),
