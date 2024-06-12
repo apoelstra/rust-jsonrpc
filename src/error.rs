@@ -35,15 +35,11 @@ pub enum Error {
 }
 
 impl From<serde_json::Error> for Error {
-    fn from(e: serde_json::Error) -> Error {
-        Error::Json(e)
-    }
+    fn from(e: serde_json::Error) -> Error { Error::Json(e) }
 }
 
 impl From<RpcError> for Error {
-    fn from(e: RpcError) -> Error {
-        Error::Rpc(e)
-    }
+    fn from(e: RpcError) -> Error { Error::Rpc(e) }
 }
 
 impl fmt::Display for Error {
@@ -136,31 +132,16 @@ pub fn standard_error(
     data: Option<Box<serde_json::value::RawValue>>,
 ) -> RpcError {
     match code {
-        StandardError::ParseError => RpcError {
-            code: -32700,
-            message: "Parse error".to_string(),
-            data,
-        },
-        StandardError::InvalidRequest => RpcError {
-            code: -32600,
-            message: "Invalid Request".to_string(),
-            data,
-        },
-        StandardError::MethodNotFound => RpcError {
-            code: -32601,
-            message: "Method not found".to_string(),
-            data,
-        },
-        StandardError::InvalidParams => RpcError {
-            code: -32602,
-            message: "Invalid params".to_string(),
-            data,
-        },
-        StandardError::InternalError => RpcError {
-            code: -32603,
-            message: "Internal error".to_string(),
-            data,
-        },
+        StandardError::ParseError =>
+            RpcError { code: -32700, message: "Parse error".to_string(), data },
+        StandardError::InvalidRequest =>
+            RpcError { code: -32600, message: "Invalid Request".to_string(), data },
+        StandardError::MethodNotFound =>
+            RpcError { code: -32601, message: "Method not found".to_string(), data },
+        StandardError::InvalidParams =>
+            RpcError { code: -32602, message: "Invalid params".to_string(), data },
+        StandardError::InternalError =>
+            RpcError { code: -32603, message: "Internal error".to_string(), data },
     }
 }
 
@@ -179,22 +160,19 @@ pub fn result_to_response(
             id,
             jsonrpc: Some(String::from("2.0")),
         },
-        Err(err) => Response {
-            result: None,
-            error: Some(err),
-            id,
-            jsonrpc: Some(String::from("2.0")),
-        },
+        Err(err) =>
+            Response { result: None, error: Some(err), id, jsonrpc: Some(String::from("2.0")) },
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use serde_json;
+
     use super::StandardError::{
         InternalError, InvalidParams, InvalidRequest, MethodNotFound, ParseError,
     };
     use super::{result_to_response, standard_error};
-    use serde_json;
 
     #[test]
     fn test_parse_error() {

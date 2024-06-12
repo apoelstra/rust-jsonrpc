@@ -25,11 +25,10 @@ pub mod client;
 pub mod error;
 pub mod http;
 
-#[cfg(feature = "simple_http")]
-pub use http::simple_http;
-
 #[cfg(feature = "minreq_http")]
 pub use http::minreq_http;
+#[cfg(feature = "simple_http")]
+pub use http::simple_http;
 
 #[cfg(feature = "simple_tcp")]
 pub mod simple_tcp;
@@ -114,19 +113,15 @@ impl Response {
     }
 
     /// Returns whether or not the `result` field is empty.
-    pub fn is_none(&self) -> bool {
-        self.result.is_none()
-    }
+    pub fn is_none(&self) -> bool { self.result.is_none() }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use serde_json::json;
+    use serde_json::value::{to_raw_value, RawValue};
 
-    use serde_json::{
-        json,
-        value::{to_raw_value, RawValue},
-    };
+    use super::*;
 
     #[test]
     fn response_is_none() {
@@ -215,12 +210,7 @@ mod tests {
         struct Test {
             v: String,
         }
-        test_arg!(
-            Test {
-                v: String::from("test"),
-            },
-            Test
-        );
+        test_arg!(Test { v: String::from("test") }, Test);
     }
 
     #[test]

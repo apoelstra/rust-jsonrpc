@@ -39,10 +39,7 @@ pub struct Client {
 impl Client {
     /// Creates a new client with the given transport.
     pub fn with_transport<T: Transport>(transport: T) -> Client {
-        Client {
-            transport: Box::new(transport),
-            nonce: atomic::AtomicUsize::new(1),
-        }
+        Client { transport: Box::new(transport), nonce: atomic::AtomicUsize::new(1) }
     }
 
     /// Builds a request.
@@ -51,12 +48,7 @@ impl Client {
     /// [`crate::arg`] or [`crate::try_arg`].
     pub fn build_request<'a>(&self, method: &'a str, params: Option<&'a RawValue>) -> Request<'a> {
         let nonce = self.nonce.fetch_add(1, atomic::Ordering::Relaxed);
-        Request {
-            method,
-            params,
-            id: serde_json::Value::from(nonce),
-            jsonrpc: Some("2.0"),
-        }
+        Request { method, params, id: serde_json::Value::from(nonce), jsonrpc: Some("2.0") }
     }
 
     /// Sends a request to a client.
@@ -141,9 +133,7 @@ impl fmt::Debug for crate::Client {
 }
 
 impl<T: Transport> From<T> for Client {
-    fn from(t: T) -> Client {
-        Client::with_transport(t)
-    }
+    fn from(t: T) -> Client { Client::with_transport(t) }
 }
 
 /// Newtype around `Value` which allows hashing for use as hashmap keys,
@@ -200,24 +190,18 @@ impl<'a> Hash for HashableValue<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use std::borrow::Cow;
     use std::collections::HashSet;
     use std::str::FromStr;
     use std::sync;
 
+    use super::*;
+
     struct DummyTransport;
     impl Transport for DummyTransport {
-        fn send_request(&self, _: Request) -> Result<Response, Error> {
-            Err(Error::NonceMismatch)
-        }
-        fn send_batch(&self, _: &[Request]) -> Result<Vec<Response>, Error> {
-            Ok(vec![])
-        }
-        fn fmt_target(&self, _: &mut fmt::Formatter) -> fmt::Result {
-            Ok(())
-        }
+        fn send_request(&self, _: Request) -> Result<Response, Error> { Err(Error::NonceMismatch) }
+        fn send_batch(&self, _: &[Request]) -> Result<Vec<Response>, Error> { Ok(vec![]) }
+        fn fmt_target(&self, _: &mut fmt::Formatter) -> fmt::Result { Ok(()) }
     }
 
     #[test]

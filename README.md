@@ -4,7 +4,7 @@
 
 This library is compatible with Rust **1.48.0** or higher.
 
-However, if you want to use the library with 1.41, you will need to pin a couple of
+However, if you want to use the library with 1.48, you will need to pin a couple of
 our dependencies:
 
 ```

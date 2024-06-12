@@ -20,7 +20,6 @@ use std::time::Duration;
 use std::{fs, panic};
 
 use backtrace::Backtrace;
-
 use jsonrpc::http::minreq_http;
 use jsonrpc::{Client, Request};
 use serde_json::json;
@@ -44,9 +43,7 @@ impl log::Log for StdLogger {
 
 static LOGGER: StdLogger = StdLogger;
 
-fn get_rpc_url() -> String {
-    std::env::var("RPC_URL").expect("RPC_URL must be set")
-}
+fn get_rpc_url() -> String { std::env::var("RPC_URL").expect("RPC_URL must be set") }
 
 fn get_auth() -> (String, Option<String>) {
     if let Ok(cookie) = std::env::var("RPC_COOKIE") {

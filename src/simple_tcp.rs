@@ -19,12 +19,7 @@ pub struct TcpTransport {
 
 impl TcpTransport {
     /// Creates a new `TcpTransport` without timeouts.
-    pub fn new(addr: net::SocketAddr) -> TcpTransport {
-        TcpTransport {
-            addr,
-            timeout: None,
-        }
-    }
+    pub fn new(addr: net::SocketAddr) -> TcpTransport { TcpTransport { addr, timeout: None } }
 
     fn request<R>(&self, req: impl serde::Serialize) -> Result<R, Error>
     where
@@ -54,9 +49,7 @@ impl Transport for TcpTransport {
         Ok(self.request(reqs)?)
     }
 
-    fn fmt_target(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.addr)
-    }
+    fn fmt_target(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "{}", self.addr) }
 }
 
 /// Error that can occur while using the TCP transport.
@@ -95,15 +88,11 @@ impl error::Error for Error {
 }
 
 impl From<io::Error> for Error {
-    fn from(e: io::Error) -> Self {
-        Error::SocketError(e)
-    }
+    fn from(e: io::Error) -> Self { Error::SocketError(e) }
 }
 
 impl From<serde_json::Error> for Error {
-    fn from(e: serde_json::Error) -> Self {
-        Error::Json(e)
-    }
+    fn from(e: serde_json::Error) -> Self { Error::Json(e) }
 }
 
 impl From<Error> for crate::Error {
@@ -117,10 +106,8 @@ impl From<Error> for crate::Error {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        io::{Read, Write},
-        thread,
-    };
+    use std::io::{Read, Write};
+    use std::thread;
 
     use super::*;
     use crate::Client;
@@ -148,10 +135,7 @@ mod tests {
         let dummy_resp_ser = serde_json::to_vec(&dummy_resp).unwrap();
 
         let client_thread = thread::spawn(move || {
-            let transport = TcpTransport {
-                addr,
-                timeout: Some(time::Duration::from_secs(5)),
-            };
+            let transport = TcpTransport { addr, timeout: Some(time::Duration::from_secs(5)) };
             let client = Client::with_transport(transport);
 
             client.send_request(dummy_req.clone()).unwrap()
