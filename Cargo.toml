@@ -9,7 +9,10 @@ documentation = "https://docs.rs/jsonrpc/"
 description = "Rust support for the JSON-RPC 2.0 protocol"
 keywords = [ "protocol", "json", "http", "jsonrpc" ]
 readme	 = "README.md"
-edition = "2018"
+edition = "2021"
+rust-version = "1.56.1"
+exclude = ["tests", "contrib"]
+
 
 [package.metadata.docs.rs]
 all-features = true
@@ -28,7 +31,7 @@ simple_uds = []
 # Enable Socks5 Proxy in transport
 proxy = ["socks"]
 
-
+      
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = [ "raw_value" ] }
