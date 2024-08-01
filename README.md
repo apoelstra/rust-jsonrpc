@@ -2,18 +2,7 @@
 
 # Rust Version compatibility
 
-This library is compatible with Rust **1.48.0** or higher.
-
-However, if you want to use the library with 1.48, you will need to pin a couple of
-our dependencies:
-
-```
-cargo update -p serde --precise 1.0.156
-cargo update -p syn --precise 1.0.107
-```
-
-before building. (And if your code is a library, your downstream users will need to
-run these commands, and so on.)
+This library is compatible with Rust **1.63.0** or higher.
 
 # Rust JSONRPC Client
 
