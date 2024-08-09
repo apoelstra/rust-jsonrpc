@@ -80,7 +80,7 @@ lazy_static! {
 }
 
 thread_local! {
-    static LAST_PANIC: RefCell<Option<(String, Backtrace)>> = RefCell::new(None);
+    static LAST_PANIC: RefCell<Option<(String, Backtrace)>> = const { RefCell::new(None) };
 }
 
 macro_rules! run_test {
