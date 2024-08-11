@@ -9,7 +9,7 @@ publish = false
 cargo-fuzz = true
 
 [dependencies]
-honggfuzz = { version = "0.5.55", default-features = false }
+honggfuzz = { version = "0.5.56", default-features = false }
 jsonrpc = { path = "..", features = ["minreq_http"] }
 
 [[bin]]
@@ -19,3 +19,6 @@ path = "fuzz_targets/minreq_http.rs"
 [[bin]]
 name = "simple_http"
 path = "fuzz_targets/simple_http.rs"
+
+[lints.rust]
+unexpected_cfgs = { level = "deny", check-cfg = ['cfg(jsonrpc_fuzz)'] }
