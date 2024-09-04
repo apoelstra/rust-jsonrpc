@@ -1,4 +1,6 @@
-[![Status](https://travis-ci.org/apoelstra/rust-jsonrpc.png?branch=master)](https://travis-ci.org/apoelstra/rust-jsonrpc)
+# ARCHIVED
+
+This repo is now archived. The new home of rust-jsonrpc is in https://github.com/rust-bitcoin/rust-bitcoind-json-rpc/
 
 # Rust Version compatibility
 
